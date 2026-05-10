@@ -1,0 +1,16 @@
+.env
+.pytest_cache/
+.pytest-data/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+covers/
+
+.venv/
+venv/
+
+dist/
+build/

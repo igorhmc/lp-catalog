@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form class="search-form" action="/" method="get">
+  <div class="search-controls search-controls-wide">
+    <input type="text" name="q" placeholder="Buscar por artista, titulo, catalogo, codigo LP ou localizacao..." value="{{ search_query or '' }}">
+    <select name="status">
+      <option value="">Todos os status</option>
+      {% for item in statuses %}
+      <option value="{{ item }}" {% if status_filter == item %}selected{% endif %}>{{ item|capitalize }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+<section class="toolbar-card">
+  <h3>Reorganizar Nicho</h3>
+  <p class="muted">Reenumera as posições do nicho escolhido em saltos de 10, preservando a ordem por artista e título.</p>
+  <form id="normalize-slot-form" class="form-inline">
+    <select name="slot_id" required>
+      <option value="">Escolha um nicho</option>
+      {% for unit in storage_units %}
+      <optgroup label="{{ unit.code }} - {{ unit.name }}">
+        {% for slot in unit.slots|sort(attribute='slot_code') %}
+        <option value="{{ slot.id }}">{{ unit.code }}-{{ slot.slot_code }} · {{ slot.purpose or 'Sem finalidade' }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary">Normalizar posições</button>
+  </form>
+</section>
+
+<section class="toolbar-card">
+  <h3>Mapa dos Nichos</h3>
+  <p class="muted">Vista frontal dos móveis, com ocupação de cada nicho, próxima posição sugerida e posições já usadas. Toque em um nicho para ver os discos cadastrados ali.</p>
+
+  {% for unit in storage_overview %}
+  <div class="unit-board">
+    <div class="unit-board-header">
+      <h4>{{ unit.code }} · {{ unit.name }}</h4>
+      {% if unit.room %}<span class="muted">{{ unit.room }}</span>{% endif %}
+    </div>
+    <div class="shelf-shell">
+      <div class="slot-front-grid {% if unit.code == 'K1' %}slot-front-grid-k1{% elif unit.code == 'K2' %}slot-front-grid-k2{% endif %}">
+      {% for slot in unit.slots %}
+      {% set fill = slot.fill_percentage or 0 %}
+      {% if slot.row_code == 'A' %}
+        {% set grid_row = 1 %}
+      {% elif slot.row_code == 'B' %}
+        {% set grid_row = 2 %}
+      {% elif slot.row_code == 'C' %}
+        {% set grid_row = 3 %}
+      {% else %}
+        {% set grid_row = 4 %}
+      {% endif %}
+      {% set grid_col = slot.col_code or '1' %}
+      <article
+        class="slot-cube slot-cube-action {% if fill >= 85 %}slot-card-full{% elif fill >= 60 %}slot-card-mid{% else %}slot-card-light{% endif %}"
+        style="grid-row: {{ grid_row }}; grid-column: {{ grid_col }};"
+        data-slot-id="{{ slot.id }}"
+        data-slot-label="{{ unit.code }}-{{ slot.slot_code }}"
+        data-slot-purpose="{{ slot.purpose or 'Sem finalidade' }}"
+        tabindex="0"
+        role="button"
+        aria-label="Ver discos do nicho {{ unit.code }}-{{ slot.slot_code }}"
+      >
+        <div class="slot-cube-head">
+          <div class="slot-cube-title">
+            <strong>{{ unit.code }}-{{ slot.slot_code }}</strong>
+            {% if slot.purpose %}<div class="sub">{{ slot.purpose }}</div>{% endif %}
+          </div>
+          <span class="pill pill-soft">{{ slot.occupied_count }}{% if slot.capacity_estimate %}/{{ slot.capacity_estimate }}{% endif %}</span>
+        </div>
+
+        <div class="slot-progress slot-progress-tight">
+          <div class="slot-progress-bar" style="width: {{ slot.fill_percentage or 0 }}%"></div>
+        </div>
+
+        <div class="slot-kpis">
+          <span><strong>{{ slot.occupied_count }}</strong> ocupados</span>
+          {% if slot.available_count is not none %}
+          <span><strong>{{ slot.available_count }}</strong> livres</span>
+          {% endif %}
+          {% if slot.fill_percentage is not none %}
+          <span><strong>{{ slot.fill_percentage }}%</strong> cheio</span>
+          {% endif %}
+        </div>
+
+        <div class="slot-cube-body">
+          {% if slot.uses_positions %}
+            <div class="slot-section-label">Posições ocupadas</div>
+            <div class="slot-position-grid">
+              {% if slot.occupied_positions %}
+                {% for position in slot.occupied_positions[:15] %}
+                <span class="slot-chip">{{ position }}</span>
+                {% endfor %}
+                {% if slot.occupied_positions|length > 15 %}
+                <span class="slot-chip slot-chip-more">+{{ slot.occupied_positions|length - 15 }}</span>
+                {% endif %}
+              {% else %}
+              <span class="slot-empty muted">Nenhum disco ainda</span>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="slot-section-label">Espaço sem posição interna</div>
+            <div class="slot-empty muted">Este nicho funciona como fila livre. O sistema mostra apenas quantos discos estão aqui.</div>
+          {% endif %}
+        </div>
+
+        <div class="slot-footer">
+          {% if slot.uses_positions %}
+          <span class="slot-next">Próxima: <code>{{ slot.next_position }}</code></span>
+          {% else %}
+          <span class="slot-next">Sem posição individual</span>
+          {% endif %}
+          <span class="slot-capacity">Capacidade: {{ slot.capacity_estimate or 'n/i' }}</span>
+        </div>
+      </article>
+      {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <section id="slot-details-panel" class="toolbar-card slot-details-panel is-hidden" aria-live="polite">
+    <div class="slot-details-head">
+      <div>
+        <h4 id="slot-details-title">Nicho</h4>
+        <p id="slot-details-subtitle" class="muted">Toque em um nicho para ver o conteúdo.</p>
+      </div>
+      <button type="button" id="slot-details-close" class="btn btn-secondary">Fechar</button>
+    </div>
+    <div id="slot-details-meta" class="slot-details-meta"></div>
+    <div id="slot-details-body" class="slot-details-body muted">Selecione um nicho no mapa.</div>
+  </section>
+</section>
+
+{% if search_query or status_filter %}
+<div class="search-results-info">
+  {% if copies|length > 0 %}
+    {% if copies|length == 1 %}
+      1 exemplar encontrado
+    {% else %}
+      {{ copies|length }} exemplares encontrados
+    {% endif %}
+  {% else %}
+    Nenhum exemplar encontrado
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="grid">
+  {% for copy in copies %}
+  <article class="card">
+    <a href="/copies/id/{{ copy.id }}" class="album-link">
+      <div class="cover">
+        {% if copy.album.cover_path %}
+        <img src="/{{ copy.album.cover_path }}" alt="Capa de {{ copy.album.title }}">
+        {% elif copy.photos %}
+        <img src="/{{ copy.photos[0].file_path }}" alt="Foto de {{ copy.album.title }}">
+        {% else %}
+        <span class="ph">Sem imagem</span>
+        {% endif %}
+      </div>
+      <div class="meta">
+        <div class="title">{{ copy.album.title }}</div>
+        <div class="sub">{{ copy.album.artist.name }}</div>
+        <div class="sub">{{ copy.album.year or 'Ano n/i' }}</div>
+        <div class="pill-row">
+          <span class="pill">{{ copy.copy_code or 'Sem codigo' }}</span>
+          <span class="pill pill-soft">{{ copy.status }}</span>
+        </div>
+        {% if copy.location_code %}
+        <div class="location-badge"><code>{{ copy.location_code }}</code></div>
+        {% elif copy.storage_slot %}
+        <div class="location-badge">{{ copy.storage_slot.storage_unit.code }}-{{ copy.storage_slot.slot_code }}</div>
+        {% endif %}
+      </div>
+    </a>
+  </article>
+  {% else %}
+  <p class="muted">Nenhum LP cadastrado ainda.</p>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ static_asset(request, 'js/home.js') }}" defer></script>
+{% endblock %}

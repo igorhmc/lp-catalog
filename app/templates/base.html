@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <title>{% block title %}LP Catalog{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <link href="{{ static_asset(request, 'styles.css') }}" rel="stylesheet">
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <header class="container site-header">
+      <h1>LP Catalog</h1>
+      <nav>
+        <a href="/" class="btn btn-secondary">Home</a>
+        <a href="/albums/new" class="btn btn-secondary ms-2">Recadastrar LP</a>
+      </nav>
+    </header>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="container muted">
+      <p>Forró em Milão • LP Catalog</p>
+    </footer>
+    {% block page_scripts %}{% endblock %}
+  </body>
+</html>

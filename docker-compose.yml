@@ -1,0 +1,88 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:${CLOUDFLARED_TAG:-2026.3.0}
+    command: tunnel --no-autoupdate run
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN:?defina CF_TUNNEL_TOKEN no .env}
+    networks: [traefik]
+
+  lpdb:
+    image: mariadb:${MARIADB_TAG:-11.8.6}
+    restart: unless-stopped
+    environment:
+      - MARIADB_DATABASE=lp_catalog
+      - MARIADB_USER=lpuser
+      - MARIADB_PASSWORD=${LP_DB_PASS:?defina LP_DB_PASS no .env}
+      - MARIADB_ROOT_PASSWORD=${LP_DB_ROOT:?defina LP_DB_ROOT no .env}
+      - TZ=${TZ:-Europe/Rome}
+    volumes:
+      - lpdb_data:/var/lib/mysql
+      - ./mariadb.cnf:/etc/mysql/conf.d/custom.cnf
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -ulpuser -p${LP_DB_PASS} -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  lp-catalog:
+    # Usar build local para incluir nossas dependências
+    build: ./app
+    container_name: lp-catalog
+    restart: unless-stopped
+    env_file: .env
+    working_dir: /app
+    depends_on:
+      lpdb:
+        condition: service_healthy
+    volumes:
+      - ./app/api:/app/api
+      - ./app/core:/app/core
+      - ./app/db:/app/db
+      - ./app/migrations:/app/migrations
+      - ./app/models:/app/models
+      - ./app/schemas:/app/schemas
+      - ./app/services:/app/services
+      - ./app/static:/app/static
+      - ./app/templates:/app/templates
+      - ./app/utils:/app/utils
+      - ./covers:/app/covers
+      - ./app/alembic.ini:/app/alembic.ini
+      - ./app/main.py:/app/main.py
+    environment:
+      - TZ=${TZ:-Europe/Rome}
+      - MODULE_NAME=main        # <— diz que o módulo é main.py
+      - VARIABLE_NAME=app       # <— objeto FastAPI é 'app'
+      - PORT=80                 # <— a imagem publica na 80
+      - HTTPS_ONLY=true
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
+    networks: [internal, traefik]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    labels:
+      - traefik.enable=false
+
+  adminer:
+    image: adminer:${ADMINER_TAG:-5.4.2-standalone}
+    restart: unless-stopped
+    depends_on:
+      lpdb:
+        condition: service_healthy
+    environment:
+      - TZ=${TZ:-Europe/Rome}
+    networks: [internal, traefik]
+    labels:
+      - traefik.enable=false
+
+networks:
+  traefik:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  lpdb_data:

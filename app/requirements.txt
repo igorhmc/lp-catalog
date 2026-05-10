@@ -1,0 +1,14 @@
+fastapi==0.112.2
+uvicorn==0.30.6
+pydantic==2.9.1
+SQLAlchemy==2.0.35
+asyncmy==0.2.9
+pymysql==1.1.0
+alembic==1.13.2
+python-multipart==0.0.9
+httpx==0.27.2
+python-dotenv==1.0.1
+discogs-client==2.3.0
+aiofiles==23.2.1  # Para operações assíncronas com arquivos
+jinja2==3.1.3  # Para templates HTML
+aiosqlite==0.21.0  # Suporte a SQLite assíncrono para testes

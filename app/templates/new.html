@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Recadastrar LP{% endblock %}
+
+{% block content %}
+<div class="form-container">
+  <h2>Recadastrar LP</h2>
+  <p class="muted">Fluxo: buscar edicao no Discogs, revisar dados da edicao, cadastrar o exemplar e depois anexar as fotos reais.</p>
+
+  <form id="search-form" class="form">
+    <div class="search-controls search-controls-wide">
+      <label class="search-input">
+        Buscar no Discogs
+        <input type="text" name="q" placeholder="Nome do album, artista, catalogo..." required>
+      </label>
+      <button type="submit">Buscar</button>
+    </div>
+  </form>
+
+  <div id="results" class="grid page-section"></div>
+
+  <section id="editor" class="page-section is-hidden">
+    <h3>Edicao e exemplar</h3>
+    <div class="album-layout">
+      <div class="cover">
+        <img id="cover-preview" alt="Capa de referencia" />
+      </div>
+      <form id="album-form" class="form">
+        <input type="hidden" name="discogs_id">
+        <input type="hidden" name="cover_url">
+        <input type="hidden" name="cover_path">
+
+        <div class="form-section">
+          <h4>Edicao</h4>
+
+          <label>
+            Titulo
+            <input type="text" name="title" required>
+          </label>
+
+          <label>
+            Artista
+            <input type="text" name="artist_name" required>
+          </label>
+
+          <div class="location-grid">
+            <label>
+              Ano
+              <input type="number" name="year" min="1900" max="2100">
+            </label>
+
+            <label>
+              Pais
+              <input type="text" name="country" placeholder="Ex.: Brazil">
+            </label>
+
+            <label>
+              Genero
+              <input type="text" name="genre">
+            </label>
+          </div>
+
+          <div class="location-grid">
+            <label>
+              Selo
+              <input type="text" name="label_name" placeholder="Ex.: CBS">
+            </label>
+
+            <label>
+              Catalogo
+              <input type="text" name="catalog_number" placeholder="Ex.: 138.123">
+            </label>
+
+            <label>
+              Codigo de barras
+              <input type="text" name="barcode">
+            </label>
+          </div>
+
+          <div class="location-grid">
+            <label>
+              Formato
+              <input type="text" name="format" placeholder="LP, 12, 7...">
+            </label>
+
+            <label>
+              RPM
+              <input type="number" name="rpm" min="1" max="100">
+            </label>
+
+            <label>
+              Discos
+              <input type="number" name="discs_count" min="1" max="20">
+            </label>
+          </div>
+
+          <label>
+            Estilo
+            <input type="text" name="style" placeholder="Ex.: Forro, MPB, Soul">
+          </label>
+
+          <label>
+            Notas da edicao
+            <textarea name="notes" rows="3" placeholder="Detalhes da prensagem, creditos, observacoes do release..."></textarea>
+          </label>
+        </div>
+
+        <div class="form-section">
+          <h4>Exemplar</h4>
+
+          <div class="location-grid">
+            <label>
+              Status
+              <select name="status">
+                {% for item in statuses %}
+                <option value="{{ item }}" {% if item == 'catalogado' %}selected{% endif %}>{{ item|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Estado do disco
+              <select name="media_condition">
+                <option value="">Nao informado</option>
+                {% for item in conditions %}
+                <option value="{{ item }}">{{ item }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Estado da capa
+              <select name="sleeve_condition">
+                <option value="">Nao informado</option>
+                {% for item in conditions %}
+                <option value="{{ item }}">{{ item }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+
+          <div class="location-grid">
+            <label>
+              Nicho
+              <select name="storage_slot_id">
+                <option value="">Sem local definido</option>
+                {% for unit in storage_units %}
+                <optgroup label="{{ unit.code }} - {{ unit.name }}">
+                  {% for slot in unit.slots|sort(attribute='slot_code') %}
+                  <option value="{{ slot.id }}">{{ unit.code }}-{{ slot.slot_code }}{% if slot.purpose %} · {{ slot.purpose }}{% endif %}</option>
+                  {% endfor %}
+                </optgroup>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Posicao no nicho
+              <input type="text" name="slot_position" placeholder="Ex.: 010">
+              <small class="muted" id="slot-position-help">Para nichos de triagem/pending, a posicao individual nao e usada.</small>
+            </label>
+
+            <label class="checkbox-row">
+              <span>Complementos</span>
+              <span class="checkbox-stack">
+                <label><input type="checkbox" name="has_insert"> Encarte</label>
+                <label><input type="checkbox" name="has_obi"> OBI</label>
+              </span>
+            </label>
+          </div>
+
+          <div class="location-grid">
+            <label>
+              Data de compra
+              <input type="date" name="purchase_date">
+            </label>
+
+            <label>
+              Preco de compra
+              <input type="number" name="purchase_price" step="0.01" min="0">
+            </label>
+
+            <label>
+              Comprado de
+              <input type="text" name="purchase_from" placeholder="Loja, feira, pessoa...">
+            </label>
+          </div>
+
+          <label>
+            Notas do exemplar
+            <textarea name="copy_notes" rows="3" placeholder="Estado real do seu disco, defeitos, cheiro, assinatura, observacoes..."></textarea>
+          </label>
+        </div>
+
+        <div id="tracks-container">
+          <h4>Faixas</h4>
+          <div id="tracks-list"></div>
+          <button type="button" id="add-track" class="btn btn-secondary">+ Adicionar faixa</button>
+        </div>
+
+        <p class="muted">Depois de salvar, voce podera anexar capa, contracapa, selos e runouts reais do exemplar.</p>
+
+        <div class="action-row">
+          <button type="submit">Salvar exemplar</button>
+          <button type="button" id="cancel-edit" class="btn btn-secondary">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<template id="result-template">
+  <article class="card">
+    <div class="cover">
+      <img src="" alt="">
+    </div>
+    <div class="meta">
+      <div class="title"></div>
+      <div class="sub artist"></div>
+      <div class="sub year"></div>
+      <div class="sub catalog"></div>
+      <button class="select-btn btn" type="button">Usar esta edicao</button>
+    </div>
+  </article>
+</template>
+
+<template id="track-template">
+  <div class="track-item track-row track-row-extended">
+    <input type="number" name="track_disc_number" placeholder="Disco">
+    <input type="text" name="track_side" placeholder="Lado">
+    <input type="text" name="track_position" placeholder="Posicao" required>
+    <input type="text" name="track_title" placeholder="Titulo da faixa" required>
+    <input type="text" name="track_duration" placeholder="Duracao">
+    <button type="button" class="remove-track icon-button" title="Remover">×</button>
+  </div>
+</template>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ static_asset(request, 'js/new.js') }}" defer></script>
+{% endblock %}

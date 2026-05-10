@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ copy.copy_code }}{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Editar {{ copy.copy_code }}</h2>
+
+    <div class="album-layout page-section">
+        <div class="cover">
+            {% if copy.album.cover_path %}
+                <img src="/{{ copy.album.cover_path }}" alt="{{ copy.album.title }}" class="cover-img">
+            {% elif copy.photos %}
+                <img src="/{{ copy.photos[0].file_path }}" alt="{{ copy.album.title }}" class="cover-img">
+            {% else %}
+                <div class="no-cover">Sem imagem</div>
+            {% endif %}
+        </div>
+
+        <form id="editForm" class="form" data-copy-id="{{ copy.id }}">
+            <input type="hidden" id="discogs_id" value="{{ copy.album.discogs_id or '' }}">
+            <input type="hidden" id="cover_path" value="{{ copy.album.cover_path or '' }}">
+            <input type="hidden" id="cover_url" value="">
+
+            <div class="form-section">
+                <h4>Edicao</h4>
+
+                <label>
+                    Titulo
+                    <input type="text" class="form-control" id="title" value="{{ copy.album.title }}" required>
+                </label>
+
+                <label>
+                    Artista
+                    <input type="text" class="form-control" id="artist_name" value="{{ copy.album.artist.name }}" required>
+                </label>
+
+                <div class="location-grid">
+                    <label>
+                        Ano
+                        <input type="number" class="form-control" id="year" value="{{ copy.album.year or '' }}" min="1900" max="2100">
+                    </label>
+
+                    <label>
+                        Pais
+                        <input type="text" class="form-control" id="country" value="{{ copy.album.country or '' }}">
+                    </label>
+
+                    <label>
+                        Genero
+                        <input type="text" class="form-control" id="genre" value="{{ copy.album.genre or '' }}">
+                    </label>
+                </div>
+
+                <div class="location-grid">
+                    <label>
+                        Selo
+                        <input type="text" class="form-control" id="label_name" value="{{ copy.album.label_name or '' }}">
+                    </label>
+
+                    <label>
+                        Catalogo
+                        <input type="text" class="form-control" id="catalog_number" value="{{ copy.album.catalog_number or '' }}">
+                    </label>
+
+                    <label>
+                        Codigo de barras
+                        <input type="text" class="form-control" id="barcode" value="{{ copy.album.barcode or '' }}">
+                    </label>
+                </div>
+
+                <div class="location-grid">
+                    <label>
+                        Formato
+                        <input type="text" class="form-control" id="format" value="{{ copy.album.format or '' }}">
+                    </label>
+
+                    <label>
+                        RPM
+                        <input type="number" class="form-control" id="rpm" value="{{ copy.album.rpm or '' }}">
+                    </label>
+
+                    <label>
+                        Discos
+                        <input type="number" class="form-control" id="discs_count" value="{{ copy.album.discs_count or '' }}">
+                    </label>
+                </div>
+
+                <label>
+                    Estilo
+                    <input type="text" class="form-control" id="style" value="{{ copy.album.style or '' }}">
+                </label>
+
+                <label>
+                    Notas da edicao
+                    <textarea class="form-control" id="notes" rows="3">{{ copy.album.notes or '' }}</textarea>
+                </label>
+            </div>
+
+            <div class="form-section">
+                <h4>Exemplar</h4>
+
+                <div class="location-grid">
+                    <label>
+                        Status
+                        <select id="status" class="form-control">
+                            {% for item in statuses %}
+                            <option value="{{ item }}" {% if copy.status == item %}selected{% endif %}>{{ item|capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Estado do disco
+                        <select id="media_condition" class="form-control">
+                            <option value="">Nao informado</option>
+                            {% for item in conditions %}
+                            <option value="{{ item }}" {% if copy.media_condition == item %}selected{% endif %}>{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Estado da capa
+                        <select id="sleeve_condition" class="form-control">
+                            <option value="">Nao informado</option>
+                            {% for item in conditions %}
+                            <option value="{{ item }}" {% if copy.sleeve_condition == item %}selected{% endif %}>{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+
+                <div class="location-grid">
+                    <label>
+                        Nicho
+                        <select id="storage_slot_id" class="form-control">
+                            <option value="">Sem local definido</option>
+                            {% for unit in storage_units %}
+                            <optgroup label="{{ unit.code }} - {{ unit.name }}">
+                                {% for slot in unit.slots|sort(attribute='slot_code') %}
+                                <option value="{{ slot.id }}" {% if copy.storage_slot_id == slot.id %}selected{% endif %}>{{ unit.code }}-{{ slot.slot_code }}{% if slot.purpose %} · {{ slot.purpose }}{% endif %}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Posicao no nicho
+                        <input type="text" class="form-control" id="slot_position" value="{{ copy.slot_position or '' }}">
+                        <small class="muted" id="slot-position-help">Para nichos de triagem/pending, a posicao individual nao e usada.</small>
+                    </label>
+
+                    <label class="checkbox-row">
+                        <span>Complementos</span>
+                        <span class="checkbox-stack">
+                            <label><input type="checkbox" id="has_insert" {% if copy.has_insert %}checked{% endif %}> Encarte</label>
+                            <label><input type="checkbox" id="has_obi" {% if copy.has_obi %}checked{% endif %}> OBI</label>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="location-grid">
+                    <label>
+                        Data de compra
+                        <input type="date" class="form-control" id="purchase_date" value="{{ copy.purchase_date or '' }}">
+                    </label>
+
+                    <label>
+                        Preco de compra
+                        <input type="number" class="form-control" id="purchase_price" step="0.01" min="0" value="{{ copy.purchase_price or '' }}">
+                    </label>
+
+                    <label>
+                        Comprado de
+                        <input type="text" class="form-control" id="purchase_from" value="{{ copy.purchase_from or '' }}">
+                    </label>
+                </div>
+
+                <label>
+                    Notas do exemplar
+                    <textarea class="form-control" id="copy_notes" rows="3">{{ copy.notes or '' }}</textarea>
+                </label>
+            </div>
+
+            <div id="tracks-container" class="section-spacer-sm">
+                <h4>Faixas</h4>
+                <div id="tracks-list">
+                    {% for track in copy.album.tracks %}
+                    <div class="track-item track-row track-row-extended">
+                        <input type="number" class="form-control" name="track_disc_number" value="{{ track.disc_number or '' }}" placeholder="Disco">
+                        <input type="text" class="form-control" name="track_side" value="{{ track.side or '' }}" placeholder="Lado">
+                        <input type="text" class="form-control" name="track_position" value="{{ track.position }}" placeholder="Posicao" required>
+                        <input type="text" class="form-control" name="track_title" value="{{ track.title }}" placeholder="Titulo da faixa" required>
+                        <input type="text" class="form-control" name="track_duration" value="{{ track.duration }}" placeholder="Duracao">
+                        <button type="button" class="remove-track btn-danger icon-button" title="Remover">×</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="add-track" class="btn btn-secondary">+ Adicionar faixa</button>
+            </div>
+
+            <div class="action-row section-spacer">
+                <button type="submit" class="btn">Salvar alteracoes</button>
+                <a href="/copies/id/{{ copy.id }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+
+    <section class="page-section">
+        <h3>Fotos do exemplar</h3>
+        <div class="form-section camera-capture-card">
+            <h4>Captura guiada no celular</h4>
+            <p class="muted">Use a câmera traseira do Android com guia visual: quadrada para capa/contracapa e circular para selos/runout.</p>
+
+            <div class="camera-capture-controls">
+                <label>
+                    Tipo da foto
+                    <select id="guided-photo-type" class="form-control">
+                        {% for value, label in photo_types %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label class="checkbox-stack">
+                    <span>Opções</span>
+                    <label><input type="checkbox" id="guided-is-primary"> Definir como principal</label>
+                </label>
+            </div>
+
+            <div class="camera-stage">
+                <div id="camera-preview-shell" class="camera-preview-shell mask-square">
+                    <video id="guided-camera-preview" playsinline muted></video>
+                    <canvas id="guided-camera-canvas" class="is-hidden"></canvas>
+                    <div class="camera-overlay camera-overlay-square"></div>
+                    <div class="camera-overlay camera-overlay-circle is-hidden"></div>
+                </div>
+                <div class="camera-stage-actions">
+                    <button type="button" id="start-guided-camera" class="btn btn-secondary">Abrir câmera</button>
+                    <button type="button" id="capture-guided-photo" class="btn btn-secondary" disabled>Capturar</button>
+                    <button type="button" id="upload-guided-photo" class="btn" disabled>Enviar captura</button>
+                </div>
+                <p id="guided-camera-status" class="muted">A câmera guiada usa o navegador do celular. Se a permissão falhar, use o envio normal abaixo.</p>
+            </div>
+        </div>
+
+        <form id="photo-upload-form" class="form-inline" data-copy-id="{{ copy.id }}">
+            <select name="photo_type">
+                {% for value, label in photo_types %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <label><input type="checkbox" name="is_primary"> Definir a primeira como principal</label>
+            <input type="file" name="photos" multiple accept="image/*" capture="environment" required>
+            <button type="submit" class="btn btn-secondary">Enviar fotos</button>
+        </form>
+
+        <div class="photo-grid">
+            {% for photo in copy.photos %}
+            <article class="photo-card">
+                <img src="/{{ photo.file_path }}" alt="{{ photo.photo_type }}">
+                <div class="photo-meta">
+                    <span>{{ photo.photo_type }}</span>
+                    {% if photo.is_primary %}<span class="pill">principal</span>{% endif %}
+                </div>
+                <button type="button" class="btn btn-danger btn-sm" data-delete-photo="{{ photo.id }}" data-copy-id="{{ copy.id }}">Excluir</button>
+            </article>
+            {% else %}
+            <p class="muted">Nenhuma foto enviada ainda.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<template id="track-template">
+  <div class="track-item track-row track-row-extended">
+    <input type="number" class="form-control" name="track_disc_number" placeholder="Disco">
+    <input type="text" class="form-control" name="track_side" placeholder="Lado">
+    <input type="text" class="form-control" name="track_position" placeholder="Posicao" required>
+    <input type="text" class="form-control" name="track_title" placeholder="Titulo da faixa" required>
+    <input type="text" class="form-control" name="track_duration" placeholder="Duracao">
+    <button type="button" class="remove-track btn-danger icon-button" title="Remover">×</button>
+  </div>
+</template>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ static_asset(request, 'js/edit.js') }}" defer></script>
+{% endblock %}
