@@ -55,6 +55,7 @@ services:
       - MODULE_NAME=main        # <— diz que o módulo é main.py
       - VARIABLE_NAME=app       # <— objeto FastAPI é 'app'
       - PORT=80                 # <— a imagem publica na 80
+      - WEB_CONCURRENCY=1       # evita corrida de migrações entre workers
       - HTTPS_ONLY=true
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
     networks: [internal, traefik]

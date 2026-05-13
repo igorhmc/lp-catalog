@@ -53,8 +53,18 @@ def upgrade() -> None:
     )
 
     if bind.dialect.name != "sqlite":
-        op.alter_column("copies", "usage_status", nullable=False)
-        op.alter_column("copies", "physical_status", nullable=False)
+        op.alter_column(
+            "copies",
+            "usage_status",
+            existing_type=sa.String(length=32),
+            nullable=False,
+        )
+        op.alter_column(
+            "copies",
+            "physical_status",
+            existing_type=sa.String(length=32),
+            nullable=False,
+        )
 
     indexes = {index["name"] for index in inspector.get_indexes("copies")}
     if "ix_copies_usage_physical_status" not in indexes:
