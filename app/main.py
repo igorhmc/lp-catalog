@@ -25,9 +25,24 @@ from utils.storage import normalize_storage_token
 settings = get_settings()
 BASE_DIR = Path(__file__).resolve().parent
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
-ASSET_VERSION = "20260513-library-equal-cards-1"
+ASSET_VERSION = "20260513-copy-statuses-1"
 
 COPY_STATUSES = ["triagem", "catalogado", "guardado", "emprestado", "reservado"]
+USAGE_STATUSES = [
+    ("disponivel", "Disponível"),
+    ("emprestado", "Emprestado"),
+    ("reservado", "Reservado"),
+    ("indisponivel", "Indisponível"),
+]
+PHYSICAL_STATUSES = [
+    ("no_lugar", "No lugar"),
+    ("a_guardar", "A guardar"),
+    ("triagem", "Triagem"),
+    ("fora_do_lugar", "Fora do lugar"),
+    ("sem_posicao", "Sem posição"),
+]
+USAGE_STATUS_LABELS = dict(USAGE_STATUSES)
+PHYSICAL_STATUS_LABELS = dict(PHYSICAL_STATUSES)
 MEDIA_CONDITIONS = ["M", "NM", "VG+", "VG", "G", "P"]
 PHOTO_TYPES = [
     ("front", "Capa"),
@@ -175,6 +190,8 @@ async def home(request: Request, q: str = None, status: str = None):
                     "search_query": search_query,
                     "status_filter": status or "",
                     "statuses": COPY_STATUSES,
+                    "usage_status_labels": USAGE_STATUS_LABELS,
+                    "physical_status_labels": PHYSICAL_STATUS_LABELS,
                 },
             )
         except Exception as exc:  # noqa: BLE001
@@ -211,6 +228,8 @@ async def new_album(request: Request):
         {
             "storage_units": storage_units,
             "statuses": COPY_STATUSES,
+            "usage_statuses": USAGE_STATUSES,
+            "physical_statuses": PHYSICAL_STATUSES,
             "conditions": MEDIA_CONDITIONS,
         },
     )
@@ -226,7 +245,15 @@ async def copy_details(
     if not copy:
         return templates.TemplateResponse(request, "404.html", {}, status_code=404)
 
-    return templates.TemplateResponse(request, "details.html", {"copy": copy})
+    return templates.TemplateResponse(
+        request,
+        "details.html",
+        {
+            "copy": copy,
+            "usage_status_labels": USAGE_STATUS_LABELS,
+            "physical_status_labels": PHYSICAL_STATUS_LABELS,
+        },
+    )
 
 
 @app.get("/copies/id/{copy_id}/edit")
@@ -247,6 +274,8 @@ async def edit_copy(
             "copy": copy,
             "storage_units": storage_units,
             "statuses": COPY_STATUSES,
+            "usage_statuses": USAGE_STATUSES,
+            "physical_statuses": PHYSICAL_STATUSES,
             "conditions": MEDIA_CONDITIONS,
             "photo_types": PHOTO_TYPES,
         },

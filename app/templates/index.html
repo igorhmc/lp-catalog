@@ -64,7 +64,8 @@
         <div class="sub">{{ copy.album.year or 'Ano n/i' }}</div>
         <div class="pill-row">
           <span class="pill">{{ copy.copy_code or 'Sem código' }}</span>
-          <span class="pill pill-soft">{{ copy.status }}</span>
+          <span class="pill pill-soft">{{ usage_status_labels.get(copy.usage_status, copy.usage_status) }}</span>
+          <span class="pill pill-soft">{{ physical_status_labels.get(copy.physical_status, copy.physical_status) }}</span>
         </div>
         {% if copy.location_code %}
         <div class="location-badge"><code>{{ copy.location_code }}</code></div>

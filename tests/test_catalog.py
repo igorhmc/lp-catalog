@@ -87,6 +87,8 @@ def test_catalog_copy_crud_flow(client):
     assert detail_payload["album"]["notes"] == "Primeira prensagem"
     assert detail_payload["location_code"] == "K1-B2-007"
     assert detail_payload["copy_code"].startswith("LP-")
+    assert detail_payload["usage_status"] == "disponivel"
+    assert detail_payload["physical_status"] == "no_lugar"
     assert len(detail_payload["album"]["tracks"]) == 2
 
     update_response = client.put(
@@ -116,6 +118,8 @@ def test_catalog_copy_crud_flow(client):
     )
     assert update_response.status_code == 200, update_response.text
     assert update_response.json()["album"]["title"] == "Asa Branca Remaster"
+    assert update_response.json()["usage_status"] == "disponivel"
+    assert update_response.json()["physical_status"] == "no_lugar"
 
     detail_page = client.get(f"/copies/id/{copy_id}")
     assert detail_page.status_code == 200
@@ -269,6 +273,28 @@ def test_storage_overview_reports_fill_and_positions(client):
     assert b2["occupied_positions"] == ["010", "030"]
     assert b2["next_position"] == "020"
     assert b2["available_count"] == 58
+    assert b2["record_status_counts"]["available"] == 2
+
+
+def test_copy_status_patch_updates_usage_and_physical_status(client):
+    created = create_copy(client, title="Status Novo", artist="Artista Status", slot_code="B2", slot_position="010")
+
+    response = client.patch(
+        f"/api/v1/copies/id/{created['id']}/status",
+        json={"usage_status": "emprestado", "physical_status": "fora_do_lugar"},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["usage_status"] == "emprestado"
+    assert payload["physical_status"] == "fora_do_lugar"
+    assert payload["status"] == "emprestado"
+
+    bad = client.patch(
+        f"/api/v1/copies/id/{created['id']}/status",
+        json={"usage_status": "perdido"},
+    )
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "Invalid usage status"
 
 
 def test_slot_contents_returns_copies_in_selected_slot(client):

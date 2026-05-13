@@ -23,6 +23,7 @@ from schemas.copy import (
     CatalogItemCreate,
     CatalogItemOut,
     CopyPhotoOut,
+    CopyStatusUpdate,
     PhotoAnalysisRunOut,
     PhotoAnalysisSuggestionOut,
     StorageUnitOverviewOut,
@@ -47,20 +48,22 @@ PHOTO_TYPES = {
     "other",
 }
 POSITION_STEP = 10
+USAGE_STATUSES = {"disponivel", "emprestado", "reservado", "indisponivel"}
+PHYSICAL_STATUSES = {"no_lugar", "a_guardar", "triagem", "fora_do_lugar", "sem_posicao"}
 
 SUGGESTION_FIELDS = {
     "artist.name": ("Artista", "str"),
-    "album.title": ("Titulo", "str"),
+    "album.title": ("Título", "str"),
     "album.year": ("Ano", "int"),
-    "album.country": ("Pais", "str"),
+    "album.country": ("País", "str"),
     "album.label_name": ("Gravadora", "str"),
-    "album.catalog_number": ("Numero de catalogo", "str"),
-    "album.barcode": ("Codigo de barras", "str"),
+    "album.catalog_number": ("Número de catálogo", "str"),
+    "album.barcode": ("Código de barras", "str"),
     "album.format": ("Formato", "str"),
     "album.rpm": ("RPM", "int"),
     "album.discs_count": ("Quantidade de discos", "int"),
     "album.style": ("Estilo", "str"),
-    "album.notes": ("Notas do album", "str"),
+    "album.notes": ("Notas do álbum", "str"),
     "copy.media_condition": ("Estado do disco", "str"),
     "copy.sleeve_condition": ("Estado da capa", "str"),
     "copy.has_insert": ("Tem encarte", "bool"),
@@ -207,7 +210,22 @@ async def replace_tracks(db: AsyncSession, album_id: int, tracks: list) -> None:
 
 
 def apply_copy_fields(copy: Copy, payload: CatalogItemCreate) -> None:
+    if (
+        payload.usage_status is not None
+        and payload.usage_status.strip().casefold() not in USAGE_STATUSES
+    ):
+        raise HTTPException(status_code=400, detail="Invalid usage status")
+    if (
+        payload.physical_status is not None
+        and payload.physical_status.strip().casefold() not in PHYSICAL_STATUSES
+    ):
+        raise HTTPException(status_code=400, detail="Invalid physical status")
+
     copy.status = payload.status
+    copy.usage_status = normalize_usage_status(payload.usage_status, payload.status)
+    copy.physical_status = normalize_physical_status(payload.physical_status, payload.status)
+    if payload.usage_status is not None or payload.physical_status is not None:
+        copy.status = legacy_status_from_copy_statuses(copy.usage_status, copy.physical_status)
     copy.media_condition = payload.media_condition
     copy.sleeve_condition = payload.sleeve_condition
     copy.has_insert = payload.has_insert
@@ -216,6 +234,42 @@ def apply_copy_fields(copy: Copy, payload: CatalogItemCreate) -> None:
     copy.purchase_price = payload.purchase_price
     copy.purchase_from = payload.purchase_from
     copy.notes = payload.copy_notes
+
+
+def normalize_usage_status(value: str | None, legacy_status: str | None = None) -> str:
+    normalized = (value or "").strip().casefold()
+    if normalized in USAGE_STATUSES:
+        return normalized
+
+    legacy = (legacy_status or "").strip().casefold()
+    if legacy in {"emprestado", "reservado"}:
+        return legacy
+    return "disponivel"
+
+
+def normalize_physical_status(value: str | None, legacy_status: str | None = None) -> str:
+    normalized = (value or "").strip().casefold()
+    if normalized in PHYSICAL_STATUSES:
+        return normalized
+
+    legacy = (legacy_status or "").strip().casefold()
+    if legacy in {"guardado", "catalogado"}:
+        return "no_lugar"
+    if legacy == "emprestado":
+        return "fora_do_lugar"
+    if legacy == "reservado":
+        return "a_guardar"
+    return "triagem"
+
+
+def legacy_status_from_copy_statuses(usage_status: str, physical_status: str) -> str:
+    if usage_status in {"emprestado", "reservado"}:
+        return usage_status
+    if physical_status == "triagem":
+        return "triagem"
+    if physical_status in {"no_lugar", "fora_do_lugar"}:
+        return "guardado"
+    return "catalogado"
 
 
 def sync_album_legacy_location(album: Album, copy: Copy, slot: StorageSlot | None) -> None:
@@ -276,12 +330,17 @@ def compute_next_slot_position(used_positions: list[str], step: int = POSITION_S
     return f"{candidate:03d}"
 
 
-def status_bucket(status: str | None) -> str:
-    normalized = (status or "").strip().casefold()
-    if normalized in {"catalogado", "guardado"}:
-        return "available"
-    if normalized == "emprestado":
+def status_bucket(
+    usage_status: str | None,
+    physical_status: str | None,
+    legacy_status: str | None = None,
+) -> str:
+    usage = normalize_usage_status(usage_status, legacy_status)
+    physical = normalize_physical_status(physical_status, legacy_status)
+    if usage == "emprestado" or physical == "fora_do_lugar":
         return "out"
+    if usage == "disponivel" and physical == "no_lugar":
+        return "available"
     return "pending"
 
 
@@ -299,7 +358,9 @@ def build_record_bars(copies: list[Copy]) -> list[dict]:
         {
             "id": copy.id,
             "status": copy.status,
-            "bucket": status_bucket(copy.status),
+            "usage_status": copy.usage_status,
+            "physical_status": copy.physical_status,
+            "bucket": status_bucket(copy.usage_status, copy.physical_status, copy.status),
             "position": copy.slot_position,
             "copy_code": copy.copy_code,
         }
@@ -461,6 +522,8 @@ async def get_slot_contents(
                 "slot_position": copy.slot_position,
                 "location_code": copy.location_code,
                 "status": copy.status,
+                "usage_status": copy.usage_status,
+                "physical_status": copy.physical_status,
                 "title": copy.album.title,
                 "artist_name": copy.album.artist.name if copy.album and copy.album.artist else None,
                 "year": copy.album.year if copy.album else None,
@@ -468,6 +531,31 @@ async def get_slot_contents(
             for copy in copies
         ],
     }
+
+
+@router.patch("/id/{copy_id}/status", response_model=CatalogItemOut)
+async def update_copy_status(
+    copy_id: int,
+    payload: CopyStatusUpdate,
+    db: AsyncSession = Depends(get_session),
+):
+    copy = await fetch_copy_or_404(db, copy_id)
+    copy.usage_status = normalize_usage_status(copy.usage_status, copy.status)
+    copy.physical_status = normalize_physical_status(copy.physical_status, copy.status)
+    if payload.usage_status is not None:
+        usage_status = payload.usage_status.strip().casefold()
+        if usage_status not in USAGE_STATUSES:
+            raise HTTPException(status_code=400, detail="Invalid usage status")
+        copy.usage_status = usage_status
+    if payload.physical_status is not None:
+        physical_status = payload.physical_status.strip().casefold()
+        if physical_status not in PHYSICAL_STATUSES:
+            raise HTTPException(status_code=400, detail="Invalid physical status")
+        copy.physical_status = physical_status
+
+    copy.status = legacy_status_from_copy_statuses(copy.usage_status, copy.physical_status)
+    await db.commit()
+    return await fetch_copy_or_404(db, copy.id)
 
 
 @router.post("/meta/storage/{slot_id}/normalize")

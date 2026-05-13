@@ -48,6 +48,8 @@ class StorageSlotOverviewOut(BaseModel):
     fill_percentage: int | None = None
     next_position: str | None = None
     occupied_positions: list[str] = Field(default_factory=list)
+    record_bars: list[dict] = Field(default_factory=list)
+    record_status_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class StorageUnitOverviewOut(BaseModel):
@@ -113,6 +115,8 @@ class ReleaseOut(AlbumBase):
 class CatalogItemBase(AlbumBase):
     cover_url: str | None = None
     status: str = "triagem"
+    usage_status: str | None = None
+    physical_status: str | None = None
     media_condition: str | None = None
     sleeve_condition: str | None = None
     has_insert: bool = False
@@ -134,6 +138,8 @@ class CatalogItemOut(BaseModel):
     id: int
     copy_code: str | None = None
     status: str
+    usage_status: str
+    physical_status: str
     media_condition: str | None = None
     sleeve_condition: str | None = None
     has_insert: bool
@@ -154,6 +160,11 @@ class CatalogItemOut(BaseModel):
     location_history: list[CopyLocationHistoryOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CopyStatusUpdate(BaseModel):
+    usage_status: str | None = None
+    physical_status: str | None = None
 
 
 StorageUnitWithSlotsOut.model_rebuild()

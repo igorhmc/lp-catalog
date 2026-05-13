@@ -252,6 +252,8 @@ function collectFormData() {
     cover_path: form.cover_path.value || null,
     notes: form.notes.value.trim() || null,
     status: form.status.value,
+    usage_status: form.usage_status.value,
+    physical_status: form.physical_status.value,
     media_condition: form.media_condition.value || null,
     sleeve_condition: form.sleeve_condition.value || null,
     has_insert: form.has_insert.checked,

@@ -30,7 +30,8 @@
         <div>
             <div class="pill-row section-spacer-sm">
                 <span class="pill">{{ copy.copy_code }}</span>
-                <span class="pill pill-soft">{{ copy.status }}</span>
+                <span class="pill pill-soft">{{ usage_status_labels.get(copy.usage_status, copy.usage_status) }}</span>
+                <span class="pill pill-soft">{{ physical_status_labels.get(copy.physical_status, copy.physical_status) }}</span>
                 {% if copy.location_code %}<span class="pill"><code>{{ copy.location_code }}</code></span>{% endif %}
             </div>
 
@@ -57,6 +58,8 @@
                 <h4>Exemplar</h4>
                 <table class="details-table">
                     <tbody>
+                        <tr><th>Uso:</th><td>{{ usage_status_labels.get(copy.usage_status, copy.usage_status) }}</td></tr>
+                        <tr><th>Organização:</th><td>{{ physical_status_labels.get(copy.physical_status, copy.physical_status) }}</td></tr>
                         <tr><th>Disco:</th><td>{{ copy.media_condition or 'Não informado' }}</td></tr>
                         <tr><th>Capa:</th><td>{{ copy.sleeve_condition or 'Não informado' }}</td></tr>
                         <tr><th>Localização:</th><td>{{ copy.location_code or 'Sem local definido' }}</td></tr>

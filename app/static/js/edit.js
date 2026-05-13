@@ -220,6 +220,8 @@ function buildPayload() {
     cover_url: document.getElementById("cover_url").value || null,
     notes: document.getElementById("notes").value.trim() || null,
     status: document.getElementById("status").value,
+    usage_status: document.getElementById("usage_status").value,
+    physical_status: document.getElementById("physical_status").value,
     media_condition: document.getElementById("media_condition").value || null,
     sleeve_condition: document.getElementById("sleeve_condition").value || null,
     has_insert: document.getElementById("has_insert").checked,

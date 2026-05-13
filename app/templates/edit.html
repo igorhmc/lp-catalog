@@ -27,6 +27,7 @@
             <input type="hidden" id="discogs_id" value="{{ copy.album.discogs_id or '' }}">
             <input type="hidden" id="cover_path" value="{{ copy.album.cover_path or '' }}">
             <input type="hidden" id="cover_url" value="">
+            <input type="hidden" id="status" value="{{ copy.status or 'catalogado' }}">
 
             <div class="form-section">
                 <h4>Edição</h4>
@@ -108,14 +109,25 @@
 
                 <div class="location-grid">
                     <label>
-                        Status
-                        <select id="status" class="form-control">
-                            {% for item in statuses %}
-                            <option value="{{ item }}" {% if copy.status == item %}selected{% endif %}>{{ item|capitalize }}</option>
+                        Uso
+                        <select id="usage_status" class="form-control">
+                            {% for value, label in usage_statuses %}
+                            <option value="{{ value }}" {% if copy.usage_status == value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
                         </select>
                     </label>
 
+                    <label>
+                        Organização física
+                        <select id="physical_status" class="form-control">
+                            {% for value, label in physical_statuses %}
+                            <option value="{{ value }}" {% if copy.physical_status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+
+                <div class="location-grid">
                     <label>
                         Estado do disco
                         <select id="media_condition" class="form-control">

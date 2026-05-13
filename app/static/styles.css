@@ -1130,6 +1130,17 @@ nav {
   border-color: var(--color-accent);
 }
 
+.slot-copy-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
 .slot-copy-main {
   display: flex;
   gap: 12px;
@@ -1151,6 +1162,27 @@ nav {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: end;
+}
+
+.slot-status-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 8px;
+  min-width: 280px;
+}
+
+.slot-status-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.slot-status-controls select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .photo-grid {
@@ -1436,8 +1468,18 @@ nav {
     align-items: start;
   }
 
+  .slot-copy-link {
+    width: 100%;
+  }
+
   .slot-copy-side {
     justify-content: start;
+  }
+
+  .slot-status-controls {
+    grid-template-columns: 1fr;
+    min-width: 0;
+    width: 100%;
   }
 
   .camera-capture-controls {

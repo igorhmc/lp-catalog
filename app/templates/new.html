@@ -32,6 +32,7 @@
         <input type="hidden" name="discogs_id">
         <input type="hidden" name="cover_url">
         <input type="hidden" name="cover_path">
+        <input type="hidden" name="status" value="catalogado">
 
         <div class="form-section">
           <h4>Edição</h4>
@@ -113,14 +114,25 @@
 
           <div class="location-grid">
             <label>
-              Status
-              <select name="status">
-                {% for item in statuses %}
-                <option value="{{ item }}" {% if item == 'catalogado' %}selected{% endif %}>{{ item|capitalize }}</option>
+              Uso
+              <select name="usage_status">
+                {% for value, label in usage_statuses %}
+                <option value="{{ value }}" {% if value == 'disponivel' %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
               </select>
             </label>
 
+            <label>
+              Organização física
+              <select name="physical_status">
+                {% for value, label in physical_statuses %}
+                <option value="{{ value }}" {% if value == 'a_guardar' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+
+          <div class="location-grid">
             <label>
               Estado do disco
               <select name="media_condition">

@@ -12,12 +12,15 @@ class Copy(Base):
     __table_args__ = (
         UniqueConstraint("copy_code", name="uq_copies_copy_code"),
         Index("ix_copies_status_location", "status", "location_code"),
+        Index("ix_copies_usage_physical_status", "usage_status", "physical_status"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     album_id: Mapped[int] = mapped_column(ForeignKey("albums.id", ondelete="CASCADE"), index=True)
     copy_code: Mapped[str | None] = mapped_column(String(32), index=True)
     status: Mapped[str] = mapped_column(String(32), index=True, default="triagem")
+    usage_status: Mapped[str] = mapped_column(String(32), index=True, default="disponivel")
+    physical_status: Mapped[str] = mapped_column(String(32), index=True, default="triagem")
     media_condition: Mapped[str | None] = mapped_column(String(32))
     sleeve_condition: Mapped[str | None] = mapped_column(String(32))
     has_insert: Mapped[bool] = mapped_column(Boolean, default=False)

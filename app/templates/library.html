@@ -96,7 +96,7 @@
               {% for item in slot.record_bars %}
               <span
                 class="record-bar record-bar-{{ item.bucket }}"
-                title="{{ item.copy_code or 'Sem código' }} · {{ item.status }}{% if item.position %} · {{ item.position }}{% endif %}"
+                title="{{ item.copy_code or 'Sem código' }} · {{ item.usage_status }} · {{ item.physical_status }}{% if item.position %} · {{ item.position }}{% endif %}"
               ></span>
               {% endfor %}
             </div>
