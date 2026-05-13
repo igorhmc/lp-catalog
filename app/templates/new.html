@@ -5,25 +5,28 @@
 {% block content %}
 <div class="form-container">
   <h2>Recadastrar LP</h2>
-  <p class="muted">Fluxo: buscar edicao no Discogs, revisar dados da edicao, cadastrar o exemplar e depois anexar as fotos reais.</p>
+  <p class="muted">Fluxo: buscar edição no Discogs, revisar dados da edição, cadastrar o exemplar e depois anexar as fotos reais.</p>
 
   <form id="search-form" class="form">
     <div class="search-controls search-controls-wide">
       <label class="search-input">
         Buscar no Discogs
-        <input type="text" name="q" placeholder="Nome do album, artista, catalogo..." required>
+        <input type="text" name="q" placeholder="Nome do álbum, artista, catálogo..." required>
       </label>
       <button type="submit">Buscar</button>
+      <button type="button" id="manual-entry" class="btn btn-secondary">Cadastrar manualmente</button>
     </div>
   </form>
+  <p class="muted source-links">Se o disco não aparecer no Discogs, pesquise em <a href="https://forroemvinil.com" target="_blank" rel="noopener">forroemvinil.com</a> ou <a href="https://www.discofonia.com.br" target="_blank" rel="noopener">discofonia.com.br</a> e preencha manualmente.</p>
 
   <div id="results" class="grid page-section"></div>
 
   <section id="editor" class="page-section is-hidden">
-    <h3>Edicao e exemplar</h3>
+    <h3>Edição e exemplar</h3>
     <div class="album-layout">
       <div class="cover">
-        <img id="cover-preview" alt="Capa de referencia" />
+        <img id="cover-preview" class="is-hidden" alt="Capa de referência" />
+        <div id="cover-placeholder" class="no-cover">Sem imagem</div>
       </div>
       <form id="album-form" class="form">
         <input type="hidden" name="discogs_id">
@@ -31,10 +34,10 @@
         <input type="hidden" name="cover_path">
 
         <div class="form-section">
-          <h4>Edicao</h4>
+          <h4>Edição</h4>
 
           <label>
-            Titulo
+            Título
             <input type="text" name="title" required>
           </label>
 
@@ -50,12 +53,12 @@
             </label>
 
             <label>
-              Pais
+              País
               <input type="text" name="country" placeholder="Ex.: Brazil">
             </label>
 
             <label>
-              Genero
+              Gênero
               <input type="text" name="genre">
             </label>
           </div>
@@ -67,12 +70,12 @@
             </label>
 
             <label>
-              Catalogo
+              Catálogo
               <input type="text" name="catalog_number" placeholder="Ex.: 138.123">
             </label>
 
             <label>
-              Codigo de barras
+              Código de barras
               <input type="text" name="barcode">
             </label>
           </div>
@@ -100,8 +103,8 @@
           </label>
 
           <label>
-            Notas da edicao
-            <textarea name="notes" rows="3" placeholder="Detalhes da prensagem, creditos, observacoes do release..."></textarea>
+            Notas da edição
+            <textarea name="notes" rows="3" placeholder="Detalhes da prensagem, créditos, observações do release..."></textarea>
           </label>
         </div>
 
@@ -121,7 +124,7 @@
             <label>
               Estado do disco
               <select name="media_condition">
-                <option value="">Nao informado</option>
+                <option value="">Não informado</option>
                 {% for item in conditions %}
                 <option value="{{ item }}">{{ item }}</option>
                 {% endfor %}
@@ -131,7 +134,7 @@
             <label>
               Estado da capa
               <select name="sleeve_condition">
-                <option value="">Nao informado</option>
+                <option value="">Não informado</option>
                 {% for item in conditions %}
                 <option value="{{ item }}">{{ item }}</option>
                 {% endfor %}
@@ -155,16 +158,16 @@
             </label>
 
             <label>
-              Posicao no nicho
+              Posição no nicho
               <input type="text" name="slot_position" placeholder="Ex.: 010">
-              <small class="muted" id="slot-position-help">Para nichos de triagem/pending, a posicao individual nao e usada.</small>
+              <small class="muted" id="slot-position-help">Para nichos de triagem/pending, a posição individual não é usada.</small>
             </label>
 
             <label class="checkbox-row">
               <span>Complementos</span>
               <span class="checkbox-stack">
                 <label><input type="checkbox" name="has_insert"> Encarte</label>
-                <label><input type="checkbox" name="has_obi"> OBI</label>
+                <label><input type="checkbox" name="has_obi"> OBI / cinta lateral</label>
               </span>
             </label>
           </div>
@@ -176,7 +179,7 @@
             </label>
 
             <label>
-              Preco de compra
+              Preço de compra
               <input type="number" name="purchase_price" step="0.01" min="0">
             </label>
 
@@ -188,7 +191,7 @@
 
           <label>
             Notas do exemplar
-            <textarea name="copy_notes" rows="3" placeholder="Estado real do seu disco, defeitos, cheiro, assinatura, observacoes..."></textarea>
+            <textarea name="copy_notes" rows="3" placeholder="Estado real do seu disco, defeitos, cheiro, assinatura, observações..."></textarea>
           </label>
         </div>
 
@@ -198,7 +201,7 @@
           <button type="button" id="add-track" class="btn btn-secondary">+ Adicionar faixa</button>
         </div>
 
-        <p class="muted">Depois de salvar, voce podera anexar capa, contracapa, selos e runouts reais do exemplar.</p>
+        <p class="muted">Depois de salvar, você poderá anexar capa, contracapa, selos e runouts reais do exemplar.</p>
 
         <div class="action-row">
           <button type="submit">Salvar exemplar</button>
@@ -219,7 +222,7 @@
       <div class="sub artist"></div>
       <div class="sub year"></div>
       <div class="sub catalog"></div>
-      <button class="select-btn btn" type="button">Usar esta edicao</button>
+      <button class="select-btn btn" type="button">Usar esta edição</button>
     </div>
   </article>
 </template>
@@ -228,9 +231,9 @@
   <div class="track-item track-row track-row-extended">
     <input type="number" name="track_disc_number" placeholder="Disco">
     <input type="text" name="track_side" placeholder="Lado">
-    <input type="text" name="track_position" placeholder="Posicao" required>
-    <input type="text" name="track_title" placeholder="Titulo da faixa" required>
-    <input type="text" name="track_duration" placeholder="Duracao">
+    <input type="text" name="track_position" placeholder="Posição" required>
+    <input type="text" name="track_title" placeholder="Título da faixa" required>
+    <input type="text" name="track_duration" placeholder="Duração">
     <button type="button" class="remove-track icon-button" title="Remover">×</button>
   </div>
 </template>

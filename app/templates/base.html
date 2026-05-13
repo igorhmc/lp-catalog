@@ -12,11 +12,12 @@
     <header class="container site-header">
       <h1>LP Catalog</h1>
       <nav>
-        <a href="/" class="btn btn-secondary">Home</a>
+        <a href="/" class="btn btn-secondary">Catálogo</a>
+        <a href="/biblioteca" class="btn btn-secondary ms-2">Biblioteca física</a>
         <a href="/albums/new" class="btn btn-secondary ms-2">Recadastrar LP</a>
       </nav>
     </header>
-    <main class="container">
+    <main class="container {% block main_class %}{% endblock %}">
       {% block content %}{% endblock %}
     </main>
     <footer class="container muted">

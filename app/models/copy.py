@@ -37,6 +37,7 @@ class Copy(Base):
     storage_unit = relationship("StorageUnit", back_populates="copies")
     storage_slot = relationship("StorageSlot", back_populates="copies")
     photos = relationship("CopyPhoto", back_populates="copy", cascade="all, delete-orphan")
+    analysis_suggestions = relationship("PhotoAnalysisSuggestion", back_populates="copy", cascade="all, delete-orphan")
     location_history = relationship("CopyLocationHistory", back_populates="copy", cascade="all, delete-orphan")
 
 
@@ -54,6 +55,28 @@ class CopyPhoto(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     copy = relationship("Copy", back_populates="photos")
+
+
+class PhotoAnalysisSuggestion(Base):
+    __tablename__ = "photo_analysis_suggestions"
+    __table_args__ = (
+        Index("ix_photo_analysis_suggestions_copy_status", "copy_id", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    copy_id: Mapped[int] = mapped_column(ForeignKey("copies.id", ondelete="CASCADE"), index=True)
+    field_name: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(120))
+    current_value: Mapped[str | None] = mapped_column(Text)
+    suggested_value: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[int | None] = mapped_column(Integer)
+    rationale: Mapped[str | None] = mapped_column(Text)
+    source_photo_ids: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    copy = relationship("Copy", back_populates="analysis_suggestions")
 
 
 class CopyLocationHistory(Base):

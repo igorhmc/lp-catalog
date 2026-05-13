@@ -1,3 +1,5 @@
+import io
+
 import httpx
 
 
@@ -206,19 +208,30 @@ def test_pending_slot_ignores_individual_position(client):
         unit_code="K2",
         title="Fila de Triagem",
         artist="Artista Pendente",
-        slot_code="B2",
+        slot_code="B1",
         slot_position="030",
     )
 
     assert created["slot_position"] is None
-    assert created["location_code"] == "K2-B2"
+    assert created["location_code"] == "K2-B1"
 
-    slot_id = get_storage_slot_id(client, "K2", "B2")
+    slot_id = get_storage_slot_id(client, "K2", "B1")
     next_position = client.get(f"/api/v1/copies/meta/storage/{slot_id}/next-position")
     assert next_position.status_code == 200
     assert next_position.json()["uses_positions"] is False
     assert next_position.json()["next_position"] is None
     assert next_position.json()["used_positions"] == []
+
+
+def test_k2_storage_layout_has_only_two_vertical_slots(client):
+    response = client.get("/api/v1/copies/meta/storage")
+    assert response.status_code == 200, response.text
+    k2 = next(item for item in response.json() if item["code"] == "K2")
+    slots = sorted(k2["slots"], key=lambda item: item["slot_code"])
+
+    assert [slot["slot_code"] for slot in slots] == ["A1", "B1"]
+    assert [slot["col_code"] for slot in slots] == ["1", "1"]
+    assert [slot["capacity_estimate"] for slot in slots] == [65, 70]
 
 
 def test_normalize_slot_positions_rebalances_slot(client):
@@ -275,11 +288,17 @@ def test_slot_contents_returns_copies_in_selected_slot(client):
     assert payload["copies"][0]["slot_position"] == "010"
 
 
-def test_home_renders_visual_storage_grid_and_versioned_assets(client):
-    response = client.get("/")
+def test_library_renders_visual_storage_grid_and_versioned_assets(client):
+    create_copy(client, slot_code="B2", slot_position="010")
+    home = client.get("/")
+    assert home.status_code == 200
+    assert "shelf-shell" not in home.text
+
+    response = client.get("/biblioteca")
     assert response.status_code == 200
     assert "shelf-shell" in response.text
-    assert "slot-position-grid" in response.text
+    assert "slot-record-bars" in response.text
+    assert "record-bar-available" in response.text
     assert "slot-details-panel" in response.text
     assert "/static/styles.css?v=" in response.text
     assert "/static/js/home.js?v=" in response.text
@@ -296,8 +315,62 @@ def test_edit_page_exposes_guided_mobile_capture(client):
     response = client.get(f"/copies/id/{created['id']}/edit")
     assert response.status_code == 200
     assert "Captura guiada no celular" in response.text
+    assert "Analisar fotos" in response.text
+    assert "Nenhuma sugestão pendente" in response.text
     assert 'capture="environment"' in response.text
     assert "guided-camera-preview" in response.text
+
+
+def test_photo_analysis_requires_photos(client):
+    created = create_copy(client)
+    response = client.post(f"/api/v1/copies/id/{created['id']}/photo-analysis")
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Envie fotos antes de analisar."
+
+
+def test_photo_analysis_creates_pending_suggestion_and_accepts(client, monkeypatch):
+    created = create_copy(client)
+    copy_id = created["id"]
+
+    upload = client.post(
+        f"/api/v1/copies/id/{copy_id}/photos",
+        data={"photo_type": "front", "is_primary": "true"},
+        files={"photos": ("front.jpg", io.BytesIO(b"fake image"), "image/jpeg")},
+    )
+    assert upload.status_code == 201, upload.text
+
+    async def fake_analyze_copy(self, copy):
+        assert copy.photos
+        return [
+            {
+                "field_name": "album.catalog_number",
+                "suggested_value": "CBS-999",
+                "confidence": 87,
+                "rationale": "O número aparece na capa.",
+                "source_photo_ids": [copy.photos[0].id],
+            }
+        ]
+
+    from services.photo_analysis import PhotoAnalysisService
+
+    monkeypatch.setattr(PhotoAnalysisService, "analyze_copy", fake_analyze_copy)
+    analysis = client.post(f"/api/v1/copies/id/{copy_id}/photo-analysis")
+    assert analysis.status_code == 200, analysis.text
+    payload = analysis.json()
+    assert payload["created_count"] == 1
+    suggestion = payload["suggestions"][0]
+    assert suggestion["status"] == "pending"
+    assert suggestion["field_name"] == "album.catalog_number"
+    assert suggestion["current_value"] == "138.123"
+    assert suggestion["suggested_value"] == "CBS-999"
+
+    accept = client.post(f"/api/v1/copies/id/{copy_id}/photo-suggestions/{suggestion['id']}/accept")
+    assert accept.status_code == 200, accept.text
+    assert accept.json()["status"] == "accepted"
+
+    detail = client.get(f"/api/v1/copies/id/{copy_id}")
+    assert detail.status_code == 200
+    assert detail.json()["album"]["catalog_number"] == "CBS-999"
 
 
 def test_discogs_errors_return_502(client, monkeypatch):

@@ -1,4 +1,5 @@
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +12,13 @@ from schemas.album import Track
 
 BASE_URL = "https://api.discogs.com"
 logger = logging.getLogger(__name__)
+
+def split_track_position(raw_position: str | None) -> tuple[str | None, str]:
+    position = str(raw_position or "").strip()
+    match = re.match(r"^([A-Za-z]+)\s*[-.]?\s*(\d+)$", position)
+    if not match:
+        return None, position
+    return match.group(1).upper(), match.group(2)
 
 class DiscogsService:
     def __init__(self):
@@ -83,9 +91,11 @@ class DiscogsService:
                     for track_data in release.get("tracklist", []):
                         if not track_data.get("position") or not track_data.get("title"):
                             continue
+                        side, position = split_track_position(track_data["position"])
                         tracks.append(
                             Track(
-                                position=track_data["position"],
+                                side=side,
+                                position=position,
                                 title=track_data["title"],
                                 duration=track_data.get("duration", "00:00"),
                             )

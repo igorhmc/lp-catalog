@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -13,7 +15,7 @@ from api.deps import get_session
 from core.config import get_settings
 from models.album import Album
 from models.artist import Artist
-from models.copy import Copy, CopyLocationHistory, CopyPhoto
+from models.copy import Copy, CopyLocationHistory, CopyPhoto, PhotoAnalysisSuggestion
 from models.storage import StorageSlot, StorageUnit
 from models.track import Track
 from schemas.album import AlbumSearch
@@ -21,10 +23,13 @@ from schemas.copy import (
     CatalogItemCreate,
     CatalogItemOut,
     CopyPhotoOut,
+    PhotoAnalysisRunOut,
+    PhotoAnalysisSuggestionOut,
     StorageUnitOverviewOut,
     StorageUnitWithSlotsOut,
 )
 from services.discogs import DiscogsService
+from services.photo_analysis import PhotoAnalysisService, PhotoAnalysisUnavailable
 from utils.storage import build_copy_location_code, normalize_slot_position, slot_uses_positions
 
 router = APIRouter()
@@ -43,6 +48,75 @@ PHOTO_TYPES = {
 }
 POSITION_STEP = 10
 
+SUGGESTION_FIELDS = {
+    "artist.name": ("Artista", "str"),
+    "album.title": ("Titulo", "str"),
+    "album.year": ("Ano", "int"),
+    "album.country": ("Pais", "str"),
+    "album.label_name": ("Gravadora", "str"),
+    "album.catalog_number": ("Numero de catalogo", "str"),
+    "album.barcode": ("Codigo de barras", "str"),
+    "album.format": ("Formato", "str"),
+    "album.rpm": ("RPM", "int"),
+    "album.discs_count": ("Quantidade de discos", "int"),
+    "album.style": ("Estilo", "str"),
+    "album.notes": ("Notas do album", "str"),
+    "copy.media_condition": ("Estado do disco", "str"),
+    "copy.sleeve_condition": ("Estado da capa", "str"),
+    "copy.has_insert": ("Tem encarte", "bool"),
+    "copy.has_obi": ("Tem OBI", "bool"),
+    "copy.notes": ("Notas do exemplar", "str"),
+}
+
+
+def stringify_suggestion_value(value) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def normalize_suggestion_value(value: str | None) -> str:
+    return (value or "").strip().casefold()
+
+
+def parse_suggestion_value(field_name: str, raw_value: str):
+    field_type = SUGGESTION_FIELDS[field_name][1]
+    value = raw_value.strip()
+    if field_type == "int":
+        return int(value)
+    if field_type == "bool":
+        normalized = value.casefold()
+        if normalized in {"true", "1", "sim", "yes"}:
+            return True
+        if normalized in {"false", "0", "nao", "não", "no"}:
+            return False
+        raise ValueError("Boolean suggestion must be true or false")
+    return value
+
+
+def current_value_for_suggestion(copy: Copy, field_name: str) -> str | None:
+    album = copy.album
+    if field_name == "artist.name":
+        return stringify_suggestion_value(album.artist.name if album.artist else None)
+    if field_name.startswith("album."):
+        return stringify_suggestion_value(getattr(album, field_name.split(".", 1)[1]))
+    if field_name.startswith("copy."):
+        return stringify_suggestion_value(getattr(copy, field_name.split(".", 1)[1]))
+    return None
+
+
+async def apply_suggestion_value(db: AsyncSession, copy: Copy, suggestion: PhotoAnalysisSuggestion) -> None:
+    parsed_value = parse_suggestion_value(suggestion.field_name, suggestion.suggested_value)
+    if suggestion.field_name == "artist.name":
+        artist = await resolve_artist(db, str(parsed_value).strip())
+        copy.album.artist_id = artist.id
+    elif suggestion.field_name.startswith("album."):
+        setattr(copy.album, suggestion.field_name.split(".", 1)[1], parsed_value)
+    elif suggestion.field_name.startswith("copy."):
+        setattr(copy, suggestion.field_name.split(".", 1)[1], parsed_value)
+
 
 def copy_load_options():
     return (
@@ -51,6 +125,7 @@ def copy_load_options():
         selectinload(Copy.storage_unit),
         selectinload(Copy.storage_slot).selectinload(StorageSlot.storage_unit),
         selectinload(Copy.photos),
+        selectinload(Copy.analysis_suggestions),
         selectinload(Copy.location_history)
         .selectinload(CopyLocationHistory.storage_slot)
         .selectinload(StorageSlot.storage_unit),
@@ -201,6 +276,37 @@ def compute_next_slot_position(used_positions: list[str], step: int = POSITION_S
     return f"{candidate:03d}"
 
 
+def status_bucket(status: str | None) -> str:
+    normalized = (status or "").strip().casefold()
+    if normalized in {"catalogado", "guardado"}:
+        return "available"
+    if normalized == "emprestado":
+        return "out"
+    return "pending"
+
+
+def build_record_bars(copies: list[Copy]) -> list[dict]:
+    sorted_copies = sorted(
+        copies,
+        key=lambda copy: (
+            int(copy.slot_position) if copy.slot_position and copy.slot_position.isdigit() else 999999,
+            copy.slot_position or "",
+            copy.copy_code or "",
+            copy.id,
+        ),
+    )
+    return [
+        {
+            "id": copy.id,
+            "status": copy.status,
+            "bucket": status_bucket(copy.status),
+            "position": copy.slot_position,
+            "copy_code": copy.copy_code,
+        }
+        for copy in sorted_copies
+    ]
+
+
 def build_storage_overview(units: list[StorageUnit]) -> list[dict]:
     overview = []
     for unit in units:
@@ -217,6 +323,7 @@ def build_storage_overview(units: list[StorageUnit]) -> list[dict]:
             fill_percentage = None
             if capacity:
                 fill_percentage = round((occupied_count / capacity) * 100)
+            record_bars = build_record_bars(slot.copies)
 
             slot_items.append(
                 {
@@ -232,6 +339,12 @@ def build_storage_overview(units: list[StorageUnit]) -> list[dict]:
                     "fill_percentage": fill_percentage,
                     "next_position": compute_next_slot_position(occupied_positions) if uses_positions else None,
                     "occupied_positions": occupied_positions,
+                    "record_bars": record_bars,
+                    "record_status_counts": {
+                        "available": sum(1 for item in record_bars if item["bucket"] == "available"),
+                        "pending": sum(1 for item in record_bars if item["bucket"] == "pending"),
+                        "out": sum(1 for item in record_bars if item["bucket"] == "out"),
+                    },
                 }
             )
 
@@ -424,6 +537,125 @@ async def normalize_slot_positions(
 @router.get("/id/{copy_id}", response_model=CatalogItemOut)
 async def get_copy(copy_id: int, db: AsyncSession = Depends(get_session)):
     return await fetch_copy_or_404(db, copy_id)
+
+
+@router.post("/id/{copy_id}/photo-analysis", response_model=PhotoAnalysisRunOut)
+async def analyze_copy_photos(copy_id: int, db: AsyncSession = Depends(get_session)):
+    copy = await fetch_copy_or_404(db, copy_id)
+    if not copy.photos:
+        raise HTTPException(status_code=400, detail="Envie fotos antes de analisar.")
+
+    try:
+        raw_suggestions = await PhotoAnalysisService().analyze_copy(copy)
+    except PhotoAnalysisUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    existing_pending = {
+        (item.field_name, normalize_suggestion_value(item.suggested_value))
+        for item in copy.analysis_suggestions
+        if item.status == "pending"
+    }
+    created_count = 0
+
+    for item in raw_suggestions:
+        field_name = str(item.get("field_name", "")).strip()
+        if field_name not in SUGGESTION_FIELDS:
+            continue
+
+        suggested_value = stringify_suggestion_value(item.get("suggested_value"))
+        if not suggested_value or not suggested_value.strip():
+            continue
+
+        try:
+            parse_suggestion_value(field_name, suggested_value)
+        except (TypeError, ValueError):
+            continue
+
+        current_value = current_value_for_suggestion(copy, field_name)
+        if normalize_suggestion_value(current_value) == normalize_suggestion_value(suggested_value):
+            continue
+
+        pending_key = (field_name, normalize_suggestion_value(suggested_value))
+        if pending_key in existing_pending:
+            continue
+
+        confidence = item.get("confidence")
+        if isinstance(confidence, int):
+            confidence = max(0, min(confidence, 100))
+        else:
+            confidence = None
+
+        source_photo_ids = item.get("source_photo_ids") or []
+        if not isinstance(source_photo_ids, list):
+            source_photo_ids = []
+
+        db.add(
+            PhotoAnalysisSuggestion(
+                copy_id=copy.id,
+                field_name=field_name,
+                label=SUGGESTION_FIELDS[field_name][0],
+                current_value=current_value,
+                suggested_value=suggested_value.strip(),
+                confidence=confidence,
+                rationale=str(item.get("rationale") or "").strip() or None,
+                source_photo_ids=json.dumps(source_photo_ids),
+            )
+        )
+        existing_pending.add(pending_key)
+        created_count += 1
+
+    await db.commit()
+    result = await db.execute(
+        select(PhotoAnalysisSuggestion)
+        .filter(PhotoAnalysisSuggestion.copy_id == copy_id, PhotoAnalysisSuggestion.status == "pending")
+        .order_by(PhotoAnalysisSuggestion.created_at.desc(), PhotoAnalysisSuggestion.id.desc())
+    )
+    suggestions = result.scalars().all()
+    message = "Nenhuma nova sugestao encontrada." if created_count == 0 else None
+    return {"created_count": created_count, "suggestions": suggestions, "message": message}
+
+
+@router.post(
+    "/id/{copy_id}/photo-suggestions/{suggestion_id}/accept",
+    response_model=PhotoAnalysisSuggestionOut,
+)
+async def accept_photo_suggestion(copy_id: int, suggestion_id: int, db: AsyncSession = Depends(get_session)):
+    copy = await fetch_copy_or_404(db, copy_id)
+    suggestion = next((item for item in copy.analysis_suggestions if item.id == suggestion_id), None)
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+    if suggestion.status != "pending":
+        raise HTTPException(status_code=400, detail="Suggestion is not pending")
+
+    try:
+        await apply_suggestion_value(db, copy, suggestion)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Suggestion value cannot be applied") from exc
+
+    suggestion.status = "accepted"
+    suggestion.resolved_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(suggestion)
+    return suggestion
+
+
+@router.post(
+    "/id/{copy_id}/photo-suggestions/{suggestion_id}/reject",
+    response_model=PhotoAnalysisSuggestionOut,
+)
+async def reject_photo_suggestion(copy_id: int, suggestion_id: int, db: AsyncSession = Depends(get_session)):
+    copy = await fetch_copy_or_404(db, copy_id)
+    suggestion = next((item for item in copy.analysis_suggestions if item.id == suggestion_id), None)
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+    if suggestion.status != "pending":
+        raise HTTPException(status_code=400, detail="Suggestion is not pending")
+
+    suggestion.status = "rejected"
+    suggestion.resolved_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(suggestion)
+    return suggestion
 
 
 @router.post("/", response_model=CatalogItemOut, status_code=201)

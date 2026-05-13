@@ -29,13 +29,14 @@ from db.session import AsyncSessionLocal, engine  # noqa: E402
 from main import app  # noqa: E402
 from models.album import Album  # noqa: E402
 from models.artist import Artist  # noqa: E402
-from models.copy import Copy, CopyLocationHistory, CopyPhoto  # noqa: E402
+from models.copy import Copy, CopyLocationHistory, CopyPhoto, PhotoAnalysisSuggestion  # noqa: E402
 from models.track import Track  # noqa: E402
 
 
 async def reset_database():
     async with AsyncSessionLocal() as session:
         await session.execute(delete(CopyLocationHistory))
+        await session.execute(delete(PhotoAnalysisSuggestion))
         await session.execute(delete(CopyPhoto))
         await session.execute(delete(Copy))
         await session.execute(delete(Track))

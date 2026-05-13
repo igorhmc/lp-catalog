@@ -98,6 +98,8 @@ async def search_albums(
                     "notes": str(album.notes) if getattr(album, "notes", None) else None,
                     "tracks": [
                         {
+                            "disc_number": track.disc_number,
+                            "side": track.side,
                             "position": str(track.position),
                             "title": str(track.title),
                             "duration": str(track.duration)
@@ -186,6 +188,8 @@ async def create_manual_album(
         for track_data in album.tracks:
             track = Track(
                 album_id=new_album.id,
+                disc_number=track_data.disc_number,
+                side=track_data.side,
                 position=track_data.position,
                 title=track_data.title,
                 duration=track_data.duration
@@ -257,6 +261,8 @@ async def create_album(
         for track_data in album.tracks:
             track = Track(
                 album_id=new_album.id,
+                disc_number=track_data.disc_number,
+                side=track_data.side,
                 position=track_data.position,
                 title=track_data.title,
                 duration=track_data.duration
@@ -340,6 +346,8 @@ async def update_album(
             if track_data.position and track_data.title:  # Só adiciona faixas com dados válidos
                 track = Track(
                     album_id=album_id,
+                    disc_number=track_data.disc_number,
+                    side=track_data.side,
                     position=track_data.position,
                     title=track_data.title,
                     duration=track_data.duration or "00:00"

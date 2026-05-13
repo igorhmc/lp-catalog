@@ -5,6 +5,46 @@ let currentSearch = {
   hasMore: false,
 };
 
+function splitTrackPosition(rawPosition, rawSide = "") {
+  const position = String(rawPosition || "").trim();
+  const side = String(rawSide || "").trim();
+  const match = position.match(/^([A-Za-z]+)\s*[-.]?\s*(\d+)$/);
+
+  if (!match) {
+    return { side, position };
+  }
+
+  const parsedSide = match[1].toUpperCase();
+  if (side && side.toUpperCase() !== parsedSide) {
+    return { side, position };
+  }
+
+  return {
+    side: side || parsedSide,
+    position: match[2],
+  };
+}
+
+function normalizeTrack(track = {}) {
+  const split = splitTrackPosition(track.position, track.side);
+  return {
+    disc_number: track.disc_number || "",
+    side: split.side,
+    position: split.position,
+    title: track.title || "",
+    duration: track.duration || "",
+  };
+}
+
+function normalizeTrackRow(row) {
+  const sideInput = row.querySelector("[name='track_side']");
+  const positionInput = row.querySelector("[name='track_position']");
+  const split = splitTrackPosition(positionInput.value, sideInput.value);
+
+  sideInput.value = split.side;
+  positionInput.value = split.position;
+}
+
 async function suggestSlotPosition() {
   const slotSelect = document.querySelector("[name='storage_slot_id']");
   const positionInput = document.querySelector("[name='slot_position']");
@@ -18,7 +58,7 @@ async function suggestSlotPosition() {
     positionInput.disabled = false;
     positionInput.placeholder = "Ex.: 010";
     if (helpText) {
-      helpText.textContent = "Para nichos de triagem/pending, a posicao individual nao e usada.";
+      helpText.textContent = "Para nichos de triagem/pending, a posição individual não é usada.";
     }
     return;
   }
@@ -34,16 +74,16 @@ async function suggestSlotPosition() {
       positionInput.dataset.suggested = "";
       positionInput.dataset.manual = "";
       positionInput.disabled = true;
-      positionInput.placeholder = "Nao se aplica";
+      positionInput.placeholder = "Não se aplica";
       if (helpText) {
-        helpText.textContent = "Este nicho e de triagem/pending. O sistema guarda apenas a quantidade de discos ali.";
+      helpText.textContent = "Este nicho é de triagem/pending. O sistema guarda apenas a quantidade de discos ali.";
       }
       return;
     }
     positionInput.disabled = false;
     positionInput.placeholder = "Ex.: 010";
     if (helpText) {
-      helpText.textContent = "Para nichos de triagem/pending, a posicao individual nao e usada.";
+      helpText.textContent = "Para nichos de triagem/pending, a posição individual não é usada.";
     }
     if (!positionInput.dataset.manual || !positionInput.value.trim()) {
       positionInput.value = payload.next_position || "";
@@ -51,7 +91,7 @@ async function suggestSlotPosition() {
       positionInput.dataset.manual = "";
     }
   } catch (_) {
-    // sugestao falhou; mantem preenchimento manual
+    // Sugestão falhou; mantém preenchimento manual.
   }
 }
 
@@ -86,16 +126,38 @@ function clearTracks() {
 }
 
 function addTrackRow(track = { disc_number: "", side: "", position: "", title: "", duration: "" }) {
+  const normalizedTrack = normalizeTrack(track);
   const tpl = document.getElementById("track-template");
   const node = tpl.content.cloneNode(true);
-  node.querySelector("[name='track_disc_number']").value = track.disc_number || "";
-  node.querySelector("[name='track_side']").value = track.side || "";
-  node.querySelector("[name='track_position']").value = track.position || "";
-  node.querySelector("[name='track_title']").value = track.title || "";
-  node.querySelector("[name='track_duration']").value = track.duration || "";
+  node.querySelector("[name='track_disc_number']").value = normalizedTrack.disc_number;
+  node.querySelector("[name='track_side']").value = normalizedTrack.side;
+  node.querySelector("[name='track_position']").value = normalizedTrack.position;
+  node.querySelector("[name='track_title']").value = normalizedTrack.title;
+  node.querySelector("[name='track_duration']").value = normalizedTrack.duration;
+  node.querySelector("[name='track_position']").addEventListener("blur", (event) =>
+    normalizeTrackRow(event.currentTarget.closest(".track-item"))
+  );
   node.querySelector(".remove-track").onclick = (event) =>
     event.currentTarget.closest(".track-item").remove();
   document.getElementById("tracks-list").appendChild(node);
+}
+
+function updateCoverPreview(album) {
+  const cover = document.getElementById("cover-preview");
+  const placeholder = document.getElementById("cover-placeholder");
+
+  if (album.cover_url) {
+    cover.src = album.cover_url;
+    cover.alt = `Capa do álbum ${album.title || ""}`;
+    cover.classList.remove("is-hidden");
+    placeholder.classList.add("is-hidden");
+    return;
+  }
+
+  cover.removeAttribute("src");
+  cover.alt = "Sem imagem";
+  cover.classList.add("is-hidden");
+  placeholder.classList.remove("is-hidden");
 }
 
 function prefillEditor(album) {
@@ -103,7 +165,6 @@ function prefillEditor(album) {
 
   const editor = document.getElementById("editor");
   const form = document.getElementById("album-form");
-  const cover = document.getElementById("cover-preview");
 
   form.title.value = selectedAlbum.title || "";
   form.artist_name.value = selectedAlbum.artist || "";
@@ -119,8 +180,7 @@ function prefillEditor(album) {
   form.discogs_id.value = selectedAlbum.discogs_id || "";
   form.cover_url.value = selectedAlbum.cover_url || "";
 
-  cover.src = selectedAlbum.cover_url || "";
-  cover.alt = `Capa do álbum ${selectedAlbum.title}`;
+  updateCoverPreview(selectedAlbum);
 
   clearTracks();
   (selectedAlbum.tracks || []).forEach((track) => addTrackRow(track));
@@ -130,6 +190,25 @@ function prefillEditor(album) {
 
   editor.classList.remove("is-hidden");
   window.scrollTo({ top: editor.offsetTop - 12, behavior: "smooth" });
+}
+
+function openManualEditor() {
+  prefillEditor({
+    title: "",
+    artist: "",
+    year: "",
+    genre: "",
+    country: "",
+    label_name: "",
+    catalog_number: "",
+    barcode: "",
+    format: "",
+    style: "",
+    notes: "",
+    discogs_id: "",
+    cover_url: "",
+    tracks: [],
+  });
 }
 
 function collectTracks() {
@@ -302,6 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("add-track").addEventListener("click", () => addTrackRow());
+  document.getElementById("manual-entry").addEventListener("click", openManualEditor);
   document.getElementById("cancel-edit").addEventListener("click", () => {
     selectedAlbum = null;
     document.getElementById("editor").classList.add("is-hidden");

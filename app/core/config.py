@@ -17,6 +17,8 @@ class Settings(BaseModel):
     MYSQL_PASSWORD: str = os.getenv("MYSQL_PASSWORD", "lpsecret")
 
     DISCOGS_TOKEN: str | None = os.getenv("DISCOGS_TOKEN")
+    OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
+    OPENAI_PHOTO_ANALYSIS_MODEL: str = os.getenv("OPENAI_PHOTO_ANALYSIS_MODEL", "gpt-4.1-mini")
     COVERS_DIR: str = os.getenv("COVERS_DIR", "/app/covers")
     ALLOWED_ORIGINS_RAW: str = os.getenv("ALLOWED_ORIGINS", "")
     AUTO_APPLY_MIGRATIONS: bool = os.getenv("AUTO_APPLY_MIGRATIONS", "true").lower() == "true"

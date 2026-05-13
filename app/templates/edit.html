@@ -4,7 +4,13 @@
 
 {% block content %}
 <div class="form-container">
-    <h2>Editar {{ copy.copy_code }}</h2>
+    <div class="page-actions page-actions-top">
+        <h2>Editar {{ copy.copy_code }}</h2>
+        <div class="action-row action-row-grouped">
+            <button type="submit" form="editForm" class="btn btn-edit">Salvar alterações</button>
+            <a href="/copies/id/{{ copy.id }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </div>
 
     <div class="album-layout page-section">
         <div class="cover">
@@ -23,10 +29,10 @@
             <input type="hidden" id="cover_url" value="">
 
             <div class="form-section">
-                <h4>Edicao</h4>
+                <h4>Edição</h4>
 
                 <label>
-                    Titulo
+                    Título
                     <input type="text" class="form-control" id="title" value="{{ copy.album.title }}" required>
                 </label>
 
@@ -42,12 +48,12 @@
                     </label>
 
                     <label>
-                        Pais
+                        País
                         <input type="text" class="form-control" id="country" value="{{ copy.album.country or '' }}">
                     </label>
 
                     <label>
-                        Genero
+                        Gênero
                         <input type="text" class="form-control" id="genre" value="{{ copy.album.genre or '' }}">
                     </label>
                 </div>
@@ -59,12 +65,12 @@
                     </label>
 
                     <label>
-                        Catalogo
+                        Catálogo
                         <input type="text" class="form-control" id="catalog_number" value="{{ copy.album.catalog_number or '' }}">
                     </label>
 
                     <label>
-                        Codigo de barras
+                        Código de barras
                         <input type="text" class="form-control" id="barcode" value="{{ copy.album.barcode or '' }}">
                     </label>
                 </div>
@@ -92,7 +98,7 @@
                 </label>
 
                 <label>
-                    Notas da edicao
+                    Notas da edição
                     <textarea class="form-control" id="notes" rows="3">{{ copy.album.notes or '' }}</textarea>
                 </label>
             </div>
@@ -113,7 +119,7 @@
                     <label>
                         Estado do disco
                         <select id="media_condition" class="form-control">
-                            <option value="">Nao informado</option>
+                            <option value="">Não informado</option>
                             {% for item in conditions %}
                             <option value="{{ item }}" {% if copy.media_condition == item %}selected{% endif %}>{{ item }}</option>
                             {% endfor %}
@@ -123,7 +129,7 @@
                     <label>
                         Estado da capa
                         <select id="sleeve_condition" class="form-control">
-                            <option value="">Nao informado</option>
+                            <option value="">Não informado</option>
                             {% for item in conditions %}
                             <option value="{{ item }}" {% if copy.sleeve_condition == item %}selected{% endif %}>{{ item }}</option>
                             {% endfor %}
@@ -147,16 +153,16 @@
                     </label>
 
                     <label>
-                        Posicao no nicho
+                        Posição no nicho
                         <input type="text" class="form-control" id="slot_position" value="{{ copy.slot_position or '' }}">
-                        <small class="muted" id="slot-position-help">Para nichos de triagem/pending, a posicao individual nao e usada.</small>
+                        <small class="muted" id="slot-position-help">Para nichos de triagem/pending, a posição individual não é usada.</small>
                     </label>
 
                     <label class="checkbox-row">
                         <span>Complementos</span>
                         <span class="checkbox-stack">
                             <label><input type="checkbox" id="has_insert" {% if copy.has_insert %}checked{% endif %}> Encarte</label>
-                            <label><input type="checkbox" id="has_obi" {% if copy.has_obi %}checked{% endif %}> OBI</label>
+                            <label><input type="checkbox" id="has_obi" {% if copy.has_obi %}checked{% endif %}> OBI / cinta lateral</label>
                         </span>
                     </label>
                 </div>
@@ -168,7 +174,7 @@
                     </label>
 
                     <label>
-                        Preco de compra
+                        Preço de compra
                         <input type="number" class="form-control" id="purchase_price" step="0.01" min="0" value="{{ copy.purchase_price or '' }}">
                     </label>
 
@@ -191,9 +197,9 @@
                     <div class="track-item track-row track-row-extended">
                         <input type="number" class="form-control" name="track_disc_number" value="{{ track.disc_number or '' }}" placeholder="Disco">
                         <input type="text" class="form-control" name="track_side" value="{{ track.side or '' }}" placeholder="Lado">
-                        <input type="text" class="form-control" name="track_position" value="{{ track.position }}" placeholder="Posicao" required>
-                        <input type="text" class="form-control" name="track_title" value="{{ track.title }}" placeholder="Titulo da faixa" required>
-                        <input type="text" class="form-control" name="track_duration" value="{{ track.duration }}" placeholder="Duracao">
+                        <input type="text" class="form-control" name="track_position" value="{{ track.position }}" placeholder="Posição" required>
+                        <input type="text" class="form-control" name="track_title" value="{{ track.title }}" placeholder="Título da faixa" required>
+                        <input type="text" class="form-control" name="track_duration" value="{{ track.duration }}" placeholder="Duração">
                         <button type="button" class="remove-track btn-danger icon-button" title="Remover">×</button>
                     </div>
                     {% endfor %}
@@ -201,10 +207,6 @@
                 <button type="button" id="add-track" class="btn btn-secondary">+ Adicionar faixa</button>
             </div>
 
-            <div class="action-row section-spacer">
-                <button type="submit" class="btn">Salvar alteracoes</button>
-                <a href="/copies/id/{{ copy.id }}" class="btn btn-secondary">Cancelar</a>
-            </div>
         </form>
     </div>
 
@@ -246,6 +248,40 @@
             </div>
         </div>
 
+        <div class="form-section photo-analysis-card">
+            <div class="section-header-row">
+                <div>
+                    <h4>Análise das fotos</h4>
+                    <p class="muted">Gera sugestões pendentes a partir das fotos enviadas, sem alterar o cadastro automaticamente.</p>
+                </div>
+                <button type="button" id="analyze-photos" class="btn btn-secondary" data-copy-id="{{ copy.id }}">Analisar fotos</button>
+            </div>
+            <p id="photo-analysis-status" class="muted">As sugestões precisam ser aplicadas manualmente.</p>
+
+            {% set pending_suggestions = copy.analysis_suggestions|selectattr("status", "equalto", "pending")|list %}
+            <div class="suggestion-list">
+                {% for suggestion in pending_suggestions|sort(attribute='created_at', reverse=True) %}
+                <article class="suggestion-card" data-suggestion-card="{{ suggestion.id }}">
+                    <div class="suggestion-main">
+                        <strong>{{ suggestion.label }}</strong>
+                        {% if suggestion.confidence is not none %}<span class="pill pill-soft">{{ suggestion.confidence }}%</span>{% endif %}
+                    </div>
+                    <div class="suggestion-values">
+                        <span><b>Atual:</b> {{ suggestion.current_value or '--' }}</span>
+                        <span><b>Sugestão:</b> {{ suggestion.suggested_value }}</span>
+                    </div>
+                    {% if suggestion.rationale %}<p class="muted">{{ suggestion.rationale }}</p>{% endif %}
+                    <div class="suggestion-actions">
+                        <button type="button" class="btn btn-sm" data-accept-suggestion="{{ suggestion.id }}" data-copy-id="{{ copy.id }}">Aplicar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-reject-suggestion="{{ suggestion.id }}" data-copy-id="{{ copy.id }}">Ignorar</button>
+                    </div>
+                </article>
+                {% else %}
+                <p class="muted">Nenhuma sugestão pendente.</p>
+                {% endfor %}
+            </div>
+        </div>
+
         <form id="photo-upload-form" class="form-inline" data-copy-id="{{ copy.id }}">
             <select name="photo_type">
                 {% for value, label in photo_types %}
@@ -272,15 +308,22 @@
             {% endfor %}
         </div>
     </section>
+
+    <div class="page-actions page-actions-bottom">
+        <div class="action-row action-row-grouped">
+            <button type="submit" form="editForm" class="btn btn-edit">Salvar alterações</button>
+            <a href="/copies/id/{{ copy.id }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </div>
 </div>
 
 <template id="track-template">
   <div class="track-item track-row track-row-extended">
     <input type="number" class="form-control" name="track_disc_number" placeholder="Disco">
     <input type="text" class="form-control" name="track_side" placeholder="Lado">
-    <input type="text" class="form-control" name="track_position" placeholder="Posicao" required>
-    <input type="text" class="form-control" name="track_title" placeholder="Titulo da faixa" required>
-    <input type="text" class="form-control" name="track_duration" placeholder="Duracao">
+    <input type="text" class="form-control" name="track_position" placeholder="Posição" required>
+    <input type="text" class="form-control" name="track_title" placeholder="Título da faixa" required>
+    <input type="text" class="form-control" name="track_duration" placeholder="Duração">
     <button type="button" class="remove-track btn-danger icon-button" title="Remover">×</button>
   </div>
 </template>

@@ -80,6 +80,28 @@ class CopyLocationHistoryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PhotoAnalysisSuggestionOut(BaseModel):
+    id: int
+    field_name: str
+    label: str
+    current_value: str | None = None
+    suggested_value: str
+    confidence: int | None = None
+    rationale: str | None = None
+    source_photo_ids: str | None = None
+    status: str
+    created_at: datetime
+    resolved_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PhotoAnalysisRunOut(BaseModel):
+    created_count: int
+    suggestions: list[PhotoAnalysisSuggestionOut] = Field(default_factory=list)
+    message: str | None = None
+
+
 class ReleaseOut(AlbumBase):
     id: int
     artist: ArtistOut
@@ -128,6 +150,7 @@ class CatalogItemOut(BaseModel):
     storage_slot: StorageSlotOut | None = None
     storage_unit: StorageUnitOut | None = None
     photos: list[CopyPhotoOut] = Field(default_factory=list)
+    analysis_suggestions: list[PhotoAnalysisSuggestionOut] = Field(default_factory=list)
     location_history: list[CopyLocationHistoryOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

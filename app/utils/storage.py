@@ -14,7 +14,8 @@ def normalize_storage_token(value: str | None) -> str | None:
 
 def slot_uses_positions(slot_purpose: str | None) -> bool:
     normalized = normalize_storage_token(slot_purpose)
-    return normalized not in {"TRIAGEM", "PENDING"}
+    tokens = set(normalized.split("-")) if normalized else set()
+    return tokens.isdisjoint({"TRIAGEM", "PENDING", "PENDENCIA", "PENDENCIAS"})
 
 
 def build_location_code(

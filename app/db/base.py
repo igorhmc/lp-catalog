@@ -4,8 +4,8 @@ from db.base_class import Base
 from models.artist import Artist  # noqa
 from models.album import Album    # noqa
 from models.track import Track    # noqa
-from models.copy import Copy, CopyPhoto, CopyLocationHistory  # noqa
+from models.copy import Copy, CopyPhoto, CopyLocationHistory, PhotoAnalysisSuggestion  # noqa
 from models.storage import StorageUnit, StorageSlot  # noqa
 
 # Garanta que todos os modelos estejam registrados no Base
-__all__ = ["Base", "Artist", "Album", "Track", "Copy", "CopyPhoto", "CopyLocationHistory", "StorageUnit", "StorageSlot"]
+__all__ = ["Base", "Artist", "Album", "Track", "Copy", "CopyPhoto", "CopyLocationHistory", "PhotoAnalysisSuggestion", "StorageUnit", "StorageSlot"]

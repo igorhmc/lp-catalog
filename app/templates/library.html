@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Biblioteca física{% endblock %}
+{% block main_class %}library-container{% endblock %}
+
+{% block content %}
+<section class="toolbar-card">
+  <h2>Biblioteca física</h2>
+  <p class="muted">Vista frontal dos móveis e nichos. Toque em um nicho para ver os discos cadastrados ali.</p>
+</section>
+
+<section class="toolbar-card">
+  <h3>Reorganizar nicho</h3>
+  <p class="muted">Reenumera as posições do nicho escolhido em saltos de 10, preservando a ordem por artista e título.</p>
+  <form id="normalize-slot-form" class="form-inline">
+    <select name="slot_id" required>
+      <option value="">Escolha um nicho</option>
+      {% for unit in storage_units %}
+      <optgroup label="{{ unit.code }} - {{ unit.name }}">
+        {% for slot in unit.slots|sort(attribute='slot_code') %}
+        <option value="{{ slot.id }}">{{ unit.code }}-{{ slot.slot_code }} · {{ slot.purpose or 'Sem finalidade' }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary">Normalizar posições</button>
+  </form>
+</section>
+
+<section class="toolbar-card">
+  <h3>Mapa dos nichos</h3>
+  <p class="muted">Cada bloco representa um nicho. A barra horizontal mostra a capacidade; as colunas verticais dentro do nicho representam os discos cadastrados ali.</p>
+  <div class="slot-legend">
+    <span><i class="record-bar record-bar-available"></i> Disponível</span>
+    <span><i class="record-bar record-bar-pending"></i> A organizar</span>
+    <span><i class="record-bar record-bar-out"></i> Fora da biblioteca</span>
+  </div>
+
+  <div class="library-units-layout">
+  {% for unit in storage_overview %}
+  <div class="unit-board unit-board-{{ unit.code|lower }}">
+    <div class="unit-board-header">
+      <h4>{{ unit.code }} · {{ unit.name }}</h4>
+      {% if unit.room %}<span class="muted">{{ unit.room }}</span>{% endif %}
+    </div>
+    <div class="shelf-shell {% if unit.code == 'K2' %}shelf-shell-vertical{% endif %}">
+      <div class="slot-front-grid {% if unit.code == 'K1' %}slot-front-grid-k1{% elif unit.code == 'K2' %}slot-front-grid-k2{% endif %}">
+      {% for slot in unit.slots %}
+      {% set fill = slot.fill_percentage or 0 %}
+      {% if slot.row_code == 'A' %}
+        {% set grid_row = 1 %}
+      {% elif slot.row_code == 'B' %}
+        {% set grid_row = 2 %}
+      {% elif slot.row_code == 'C' %}
+        {% set grid_row = 3 %}
+      {% else %}
+        {% set grid_row = 4 %}
+      {% endif %}
+      {% set grid_col = slot.col_code or '1' %}
+      <article
+        class="slot-cube slot-cube-action {% if fill >= 85 %}slot-card-full{% elif fill >= 60 %}slot-card-mid{% else %}slot-card-light{% endif %}"
+        style="grid-row: {{ grid_row }}; grid-column: {{ grid_col }};"
+        data-slot-id="{{ slot.id }}"
+        data-slot-label="{{ unit.code }}-{{ slot.slot_code }}"
+        data-slot-purpose="{{ slot.purpose or 'Sem finalidade' }}"
+        tabindex="0"
+        role="button"
+        aria-label="Ver discos do nicho {{ unit.code }}-{{ slot.slot_code }}"
+      >
+        <div class="slot-cube-head">
+          <div class="slot-cube-title">
+            <strong>{{ unit.code }}-{{ slot.slot_code }}</strong>
+            {% if slot.purpose %}<div class="sub">{{ slot.purpose }}</div>{% endif %}
+          </div>
+          <span class="pill pill-soft">{{ slot.occupied_count }}{% if slot.capacity_estimate %}/{{ slot.capacity_estimate }}{% endif %}</span>
+        </div>
+
+        <div class="slot-progress slot-progress-tight">
+          <div class="slot-progress-bar" style="width: {{ slot.fill_percentage or 0 }}%"></div>
+        </div>
+
+        <div class="slot-kpis">
+          <span>O <strong>{{ slot.occupied_count }}</strong></span>
+          {% if slot.available_count is not none %}
+          <span>L <strong>{{ slot.available_count }}</strong></span>
+          {% endif %}
+          {% if slot.fill_percentage is not none %}
+          <span><strong>{{ slot.fill_percentage }}%</strong></span>
+          {% endif %}
+        </div>
+
+        <div class="slot-cube-body">
+          {% if slot.record_bars %}
+            <div class="slot-section-label">Discos</div>
+            <div class="slot-record-bars" style="--record-count: {{ slot.record_bars|length }};" aria-label="Discos por status no nicho">
+              {% for item in slot.record_bars %}
+              <span
+                class="record-bar record-bar-{{ item.bucket }}"
+                title="{{ item.copy_code or 'Sem código' }} · {{ item.status }}{% if item.position %} · {{ item.position }}{% endif %}"
+              ></span>
+              {% endfor %}
+            </div>
+            <div class="slot-status-counts">
+              <span>D <b>{{ slot.record_status_counts.available }}</b></span>
+              <span>Org <b>{{ slot.record_status_counts.pending }}</b></span>
+              <span>F <b>{{ slot.record_status_counts.out }}</b></span>
+            </div>
+          {% else %}
+            <div class="slot-section-label">Discos</div>
+            <div class="slot-empty muted">Vazio.</div>
+          {% endif %}
+        </div>
+
+        <div class="slot-footer">
+          {% if slot.uses_positions %}
+          <span class="slot-next">P <code>{{ slot.next_position }}</code></span>
+          {% else %}
+          <span class="slot-next">S/pos.</span>
+          {% endif %}
+          <span class="slot-capacity">C {{ slot.capacity_estimate or 'n/i' }}</span>
+        </div>
+      </article>
+      {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+
+  <section id="slot-details-panel" class="toolbar-card slot-details-panel is-hidden" aria-live="polite">
+    <div class="slot-details-head">
+      <div>
+        <h4 id="slot-details-title">Nicho</h4>
+        <p id="slot-details-subtitle" class="muted">Toque em um nicho para ver o conteúdo.</p>
+      </div>
+      <button type="button" id="slot-details-close" class="btn btn-secondary">Fechar</button>
+    </div>
+    <div id="slot-details-meta" class="slot-details-meta"></div>
+    <div id="slot-details-body" class="slot-details-body muted">Selecione um nicho no mapa.</div>
+  </section>
+</section>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ static_asset(request, 'js/home.js') }}" defer></script>
+{% endblock %}

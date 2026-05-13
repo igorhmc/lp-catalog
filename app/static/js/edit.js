@@ -1,4 +1,35 @@
+function splitTrackPosition(rawPosition, rawSide = "") {
+  const position = String(rawPosition || "").trim();
+  const side = String(rawSide || "").trim();
+  const match = position.match(/^([A-Za-z]+)\s*[-.]?\s*(\d+)$/);
+
+  if (!match) {
+    return { side, position };
+  }
+
+  const parsedSide = match[1].toUpperCase();
+  if (side && side.toUpperCase() !== parsedSide) {
+    return { side, position };
+  }
+
+  return {
+    side: side || parsedSide,
+    position: match[2],
+  };
+}
+
+function normalizeTrackRow(container) {
+  const sideInput = container.querySelector("[name='track_side']");
+  const positionInput = container.querySelector("[name='track_position']");
+  const split = splitTrackPosition(positionInput.value, sideInput.value);
+
+  sideInput.value = split.side;
+  positionInput.value = split.position;
+}
+
 function bindTrackRowActions(container) {
+  normalizeTrackRow(container);
+  container.querySelector("[name='track_position']").addEventListener("blur", () => normalizeTrackRow(container));
   container.querySelector(".remove-track").onclick = (event) => {
     event.currentTarget.closest(".track-item").remove();
   };
@@ -214,7 +245,7 @@ async function suggestSlotPosition() {
     positionInput.disabled = false;
     positionInput.placeholder = "Ex.: 010";
     if (helpText) {
-      helpText.textContent = "Para nichos de triagem/pending, a posicao individual nao e usada.";
+      helpText.textContent = "Para nichos de triagem/pending, a posição individual não é usada.";
     }
     return;
   }
@@ -232,16 +263,16 @@ async function suggestSlotPosition() {
       positionInput.dataset.suggested = "";
       positionInput.dataset.manual = "";
       positionInput.disabled = true;
-      positionInput.placeholder = "Nao se aplica";
+      positionInput.placeholder = "Não se aplica";
       if (helpText) {
-        helpText.textContent = "Este nicho e de triagem/pending. O sistema guarda apenas a quantidade de discos ali.";
+        helpText.textContent = "Este nicho é de triagem/pending. O sistema guarda apenas a quantidade de discos ali.";
       }
       return;
     }
     positionInput.disabled = false;
     positionInput.placeholder = "Ex.: 010";
     if (helpText) {
-      helpText.textContent = "Para nichos de triagem/pending, a posicao individual nao e usada.";
+      helpText.textContent = "Para nichos de triagem/pending, a posição individual não é usada.";
     }
     if (!positionInput.dataset.manual || !positionInput.value.trim()) {
       positionInput.value = payload.next_position || "";
@@ -249,7 +280,7 @@ async function suggestSlotPosition() {
       positionInput.dataset.manual = "";
     }
   } catch (_) {
-    // mantem valor manual atual
+    // Mantém valor manual atual.
   }
 }
 
@@ -264,6 +295,32 @@ async function uploadPhotos(copyId, form) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || "Erro ao enviar fotos");
   }
+}
+
+async function analyzePhotos(copyId) {
+  const response = await fetch(`/api/v1/copies/id/${copyId}/photo-analysis`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Erro ao analisar fotos");
+  }
+
+  return response.json();
+}
+
+async function updateSuggestion(copyId, suggestionId, action) {
+  const response = await fetch(`/api/v1/copies/id/${copyId}/photo-suggestions/${suggestionId}/${action}`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Erro ao atualizar sugestão");
+  }
+
+  return response.json();
 }
 
 async function deletePhoto(copyId, photoId) {
@@ -285,6 +342,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const startGuidedCameraButton = document.getElementById("start-guided-camera");
   const captureGuidedPhotoButton = document.getElementById("capture-guided-photo");
   const uploadGuidedPhotoButton = document.getElementById("upload-guided-photo");
+  const analyzePhotosButton = document.getElementById("analyze-photos");
+  const photoAnalysisStatus = document.getElementById("photo-analysis-status");
   const editForm = document.getElementById("editForm");
 
   slotSelect.addEventListener("change", suggestSlotPosition);
@@ -308,6 +367,18 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       uploadGuidedPhotoButton.disabled = false;
       setGuidedStatus(error.message);
+    }
+  });
+  analyzePhotosButton?.addEventListener("click", async () => {
+    try {
+      analyzePhotosButton.disabled = true;
+      photoAnalysisStatus.textContent = "Analisando fotos...";
+      const result = await analyzePhotos(analyzePhotosButton.dataset.copyId);
+      photoAnalysisStatus.textContent = result.message || "Sugestões geradas. Recarregando...";
+      window.location.reload();
+    } catch (error) {
+      analyzePhotosButton.disabled = false;
+      photoAnalysisStatus.textContent = error.message;
     }
   });
 
@@ -359,6 +430,25 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.reload();
       } catch (error) {
         alert(error.message);
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-accept-suggestion], [data-reject-suggestion]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const suggestionId = button.dataset.acceptSuggestion || button.dataset.rejectSuggestion;
+      const action = button.dataset.acceptSuggestion ? "accept" : "reject";
+      try {
+        button.disabled = true;
+        await updateSuggestion(button.dataset.copyId, suggestionId, action);
+        window.location.reload();
+      } catch (error) {
+        button.disabled = false;
+        if (photoAnalysisStatus) {
+          photoAnalysisStatus.textContent = error.message;
+        } else {
+          alert(error.message);
+        }
       }
     });
   });

@@ -25,7 +25,7 @@ from utils.storage import normalize_storage_token
 settings = get_settings()
 BASE_DIR = Path(__file__).resolve().parent
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
-ASSET_VERSION = "20260510-guided-camera-1"
+ASSET_VERSION = "20260513-library-equal-cards-1"
 
 COPY_STATUSES = ["triagem", "catalogado", "guardado", "emprestado", "reservado"]
 MEDIA_CONDITIONS = ["M", "NM", "VG+", "VG", "G", "P"]
@@ -87,6 +87,7 @@ def copy_page_options():
         selectinload(Copy.storage_unit),
         selectinload(Copy.storage_slot).selectinload(StorageSlot.storage_unit),
         selectinload(Copy.photos),
+        selectinload(Copy.analysis_suggestions),
         selectinload(Copy.location_history)
         .selectinload(CopyLocationHistory.storage_slot)
         .selectinload(StorageSlot.storage_unit),
@@ -134,8 +135,6 @@ async def home(request: Request, q: str = None, status: str = None):
     for attempt in range(retries):
         try:
             async with AsyncSessionLocal() as session:
-                storage_units = await fetch_storage_units(session)
-                storage_overview = await fetch_storage_overview(session)
                 query = (
                     select(Copy)
                     .join(Copy.album)
@@ -176,8 +175,6 @@ async def home(request: Request, q: str = None, status: str = None):
                     "search_query": search_query,
                     "status_filter": status or "",
                     "statuses": COPY_STATUSES,
-                    "storage_units": storage_units,
-                    "storage_overview": storage_overview,
                 },
             )
         except Exception as exc:  # noqa: BLE001
@@ -187,6 +184,21 @@ async def home(request: Request, q: str = None, status: str = None):
                 delay *= 2
                 continue
             raise last_exc
+
+
+@app.get("/biblioteca")
+async def physical_library(request: Request):
+    async with AsyncSessionLocal() as session:
+        storage_units = await fetch_storage_units(session)
+        storage_overview = await fetch_storage_overview(session)
+    return templates.TemplateResponse(
+        request,
+        "library.html",
+        {
+            "storage_units": storage_units,
+            "storage_overview": storage_overview,
+        },
+    )
 
 
 @app.get("/albums/new")

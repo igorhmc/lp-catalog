@@ -4,6 +4,18 @@
 
 {% block content %}
 <div class="form-container">
+    <div class="page-actions page-actions-top">
+        <div>
+            <h2>{{ copy.album.title }}</h2>
+            <h3 class="album-subtitle">{{ copy.album.artist.name }}</h3>
+        </div>
+        <div class="action-row action-row-grouped">
+            <a href="/" class="btn btn-secondary">Voltar</a>
+            <a href="/copies/id/{{ copy.id }}/edit" class="btn btn-edit">Editar disco</a>
+            <button class="btn btn-danger" data-delete-copy="{{ copy.id }}">Excluir exemplar</button>
+        </div>
+    </div>
+
     <div class="album-layout page-section">
         <div class="cover">
             {% if copy.album.cover_path %}
@@ -16,9 +28,6 @@
         </div>
 
         <div>
-            <h2>{{ copy.album.title }}</h2>
-            <h3 class="album-subtitle">{{ copy.album.artist.name }}</h3>
-
             <div class="pill-row section-spacer-sm">
                 <span class="pill">{{ copy.copy_code }}</span>
                 <span class="pill pill-soft">{{ copy.status }}</span>
@@ -26,19 +35,19 @@
             </div>
 
             <div class="section-spacer">
-                <h4>Edicao</h4>
+                <h4>Edição</h4>
                 <table class="details-table">
                     <tbody>
-                        <tr><th>Ano:</th><td>{{ copy.album.year or 'Nao informado' }}</td></tr>
-                        <tr><th>Pais:</th><td>{{ copy.album.country or 'Nao informado' }}</td></tr>
-                        <tr><th>Genero:</th><td>{{ copy.album.genre or 'Nao informado' }}</td></tr>
-                        <tr><th>Estilo:</th><td>{{ copy.album.style or 'Nao informado' }}</td></tr>
-                        <tr><th>Selo:</th><td>{{ copy.album.label_name or 'Nao informado' }}</td></tr>
-                        <tr><th>Catalogo:</th><td>{{ copy.album.catalog_number or 'Nao informado' }}</td></tr>
-                        <tr><th>Codigo de barras:</th><td>{{ copy.album.barcode or 'Nao informado' }}</td></tr>
-                        <tr><th>Formato:</th><td>{{ copy.album.format or 'Nao informado' }}</td></tr>
-                        <tr><th>RPM:</th><td>{{ copy.album.rpm or 'Nao informado' }}</td></tr>
-                        <tr><th>Discos:</th><td>{{ copy.album.discs_count or 'Nao informado' }}</td></tr>
+                        <tr><th>Ano:</th><td>{{ copy.album.year or 'Não informado' }}</td></tr>
+                        <tr><th>País:</th><td>{{ copy.album.country or 'Não informado' }}</td></tr>
+                        <tr><th>Gênero:</th><td>{{ copy.album.genre or 'Não informado' }}</td></tr>
+                        <tr><th>Estilo:</th><td>{{ copy.album.style or 'Não informado' }}</td></tr>
+                        <tr><th>Selo:</th><td>{{ copy.album.label_name or 'Não informado' }}</td></tr>
+                        <tr><th>Catálogo:</th><td>{{ copy.album.catalog_number or 'Não informado' }}</td></tr>
+                        <tr><th>Código de barras:</th><td>{{ copy.album.barcode or 'Não informado' }}</td></tr>
+                        <tr><th>Formato:</th><td>{{ copy.album.format or 'Não informado' }}</td></tr>
+                        <tr><th>RPM:</th><td>{{ copy.album.rpm or 'Não informado' }}</td></tr>
+                        <tr><th>Discos:</th><td>{{ copy.album.discs_count or 'Não informado' }}</td></tr>
                         {% if copy.album.discogs_id %}<tr><th>Discogs ID:</th><td>{{ copy.album.discogs_id }}</td></tr>{% endif %}
                     </tbody>
                 </table>
@@ -48,20 +57,20 @@
                 <h4>Exemplar</h4>
                 <table class="details-table">
                     <tbody>
-                        <tr><th>Disco:</th><td>{{ copy.media_condition or 'Nao informado' }}</td></tr>
-                        <tr><th>Capa:</th><td>{{ copy.sleeve_condition or 'Nao informado' }}</td></tr>
-                        <tr><th>Localizacao:</th><td>{{ copy.location_code or 'Sem local definido' }}</td></tr>
-                        <tr><th>Compra:</th><td>{{ copy.purchase_date or 'Nao informado' }}</td></tr>
-                        <tr><th>Preco:</th><td>{% if copy.purchase_price %}{{ copy.purchase_price }}{% else %}Nao informado{% endif %}</td></tr>
-                        <tr><th>Origem:</th><td>{{ copy.purchase_from or 'Nao informado' }}</td></tr>
-                        <tr><th>Complementos:</th><td>{% if copy.has_insert %}Encarte {% endif %}{% if copy.has_obi %}OBI{% endif %}{% if not copy.has_insert and not copy.has_obi %}Nenhum informado{% endif %}</td></tr>
+                        <tr><th>Disco:</th><td>{{ copy.media_condition or 'Não informado' }}</td></tr>
+                        <tr><th>Capa:</th><td>{{ copy.sleeve_condition or 'Não informado' }}</td></tr>
+                        <tr><th>Localização:</th><td>{{ copy.location_code or 'Sem local definido' }}</td></tr>
+                        <tr><th>Compra:</th><td>{{ copy.purchase_date or 'Não informado' }}</td></tr>
+                        <tr><th>Preço:</th><td>{% if copy.purchase_price %}{{ copy.purchase_price }}{% else %}Não informado{% endif %}</td></tr>
+                        <tr><th>Origem:</th><td>{{ copy.purchase_from or 'Não informado' }}</td></tr>
+                        <tr><th>Complementos:</th><td>{% if copy.has_insert %}Encarte {% endif %}{% if copy.has_obi %}OBI / cinta lateral{% endif %}{% if not copy.has_insert and not copy.has_obi %}Nenhum informado{% endif %}</td></tr>
                     </tbody>
                 </table>
             </div>
 
             {% if copy.album.notes %}
             <div class="section-spacer">
-                <h4>Notas da edicao</h4>
+                <h4>Notas da edição</h4>
                 <p class="notes-card">{{ copy.album.notes }}</p>
             </div>
             {% endif %}
@@ -81,9 +90,9 @@
                         <tr>
                             <th>Disco</th>
                             <th>Lado</th>
-                            <th>Posicao</th>
-                            <th>Titulo</th>
-                            <th>Duracao</th>
+                            <th>Posição</th>
+                            <th>Título</th>
+                            <th>Duração</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -103,13 +112,13 @@
 
             {% if copy.location_history %}
             <div class="section-spacer">
-                <h4>Historico de localizacao</h4>
+                <h4>Histórico de localização</h4>
                 <table class="tracks-table">
                     <thead>
                         <tr>
                             <th>Quando</th>
                             <th>Local</th>
-                            <th>Observacao</th>
+                            <th>Observação</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -125,11 +134,6 @@
             </div>
             {% endif %}
 
-            <div class="action-row section-spacer">
-                <a href="/" class="btn btn-secondary">Voltar</a>
-                <a href="/copies/id/{{ copy.id }}/edit" class="btn">Editar</a>
-                <button class="btn btn-danger" data-delete-copy="{{ copy.id }}">Excluir exemplar</button>
-            </div>
         </div>
     </div>
 
@@ -149,6 +153,14 @@
             {% endfor %}
         </div>
     </section>
+
+    <div class="page-actions page-actions-bottom">
+        <div class="action-row action-row-grouped">
+            <a href="/" class="btn btn-secondary">Voltar</a>
+            <a href="/copies/id/{{ copy.id }}/edit" class="btn btn-edit">Editar disco</a>
+            <button class="btn btn-danger" data-delete-copy="{{ copy.id }}">Excluir exemplar</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
