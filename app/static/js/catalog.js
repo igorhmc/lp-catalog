@@ -1,11 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("catalog-search-input");
   const statusFilter = document.getElementById("catalog-status-filter");
+  const filterToggle = document.getElementById("catalog-filter-toggle");
+  const filterOptions = document.getElementById("catalog-filter-options");
+  const filterOptionButtons = Array.from(document.querySelectorAll(".catalog-filter-option"));
   const cards = Array.from(document.querySelectorAll(".catalog-card"));
   const resultsInfo = document.getElementById("catalog-results-info");
   const emptyState = document.getElementById("catalog-empty-state");
 
-  if (!searchInput || !statusFilter || !cards.length) {
+  if (!searchInput || !statusFilter || !filterToggle || !filterOptions) {
     return;
   }
 
@@ -52,7 +55,44 @@ document.addEventListener("DOMContentLoaded", () => {
     emptyState.classList.toggle("is-hidden", visibleCount > 0);
   };
 
+  const setFilterMenuOpen = (isOpen) => {
+    filterOptions.hidden = !isOpen;
+    filterToggle.setAttribute("aria-expanded", String(isOpen));
+  };
+
+  const selectStatusFilter = (button) => {
+    const value = button.dataset.statusValue || "";
+    const label = button.dataset.statusLabel || "Todos os status";
+    statusFilter.value = value;
+    filterOptionButtons.forEach((optionButton) => {
+      const isSelected = optionButton === button;
+      optionButton.classList.toggle("is-selected", isSelected);
+      optionButton.setAttribute("aria-checked", String(isSelected));
+    });
+    filterToggle.classList.toggle("has-active-filter", Boolean(value));
+    filterToggle.setAttribute("aria-label", `Filtrar por status${value ? `: ${label}` : ""}`);
+    filterToggle.setAttribute("title", `Filtrar por status${value ? `: ${label}` : ""}`);
+    setFilterMenuOpen(false);
+    filterCatalog();
+  };
+
   searchInput.addEventListener("input", filterCatalog);
-  statusFilter.addEventListener("change", filterCatalog);
+  filterToggle.addEventListener("click", () => {
+    setFilterMenuOpen(filterOptions.hidden);
+  });
+  filterOptionButtons.forEach((button) => {
+    button.addEventListener("click", () => selectStatusFilter(button));
+  });
+  document.addEventListener("click", (event) => {
+    if (!filterToggle.contains(event.target) && !filterOptions.contains(event.target)) {
+      setFilterMenuOpen(false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setFilterMenuOpen(false);
+      filterToggle.focus();
+    }
+  });
   filterCatalog();
 });

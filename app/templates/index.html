@@ -4,12 +4,29 @@
 <form class="search-form" action="/" method="get" id="catalog-search-form">
   <div class="search-controls search-controls-wide">
     <input type="text" name="q" id="catalog-search-input" placeholder="Buscar por artista, título, catálogo, código LP ou localização..." value="{{ search_query or '' }}" autocomplete="off">
-    <select name="status" id="catalog-status-filter">
-      <option value="">Todos os status</option>
+    <input type="hidden" name="status" id="catalog-status-filter" value="{{ status_filter or '' }}">
+    <div class="catalog-filter" id="catalog-status-filter-menu">
+      <button
+        type="button"
+        class="catalog-filter-toggle{% if status_filter %} has-active-filter{% endif %}"
+        id="catalog-filter-toggle"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="catalog-filter-options"
+        aria-label="Filtrar por status{% if status_filter %}: {{ status_filter|capitalize }}{% endif %}"
+        title="Filtrar por status{% if status_filter %}: {{ status_filter|capitalize }}{% endif %}"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z"></path>
+        </svg>
+      </button>
+      <div class="catalog-filter-options" id="catalog-filter-options" role="menu" hidden>
+        <button type="button" role="menuitemradio" class="catalog-filter-option{% if not status_filter %} is-selected{% endif %}" data-status-value="" data-status-label="Todos os status" aria-checked="{{ 'true' if not status_filter else 'false' }}">Todos os status</button>
       {% for item in statuses %}
-      <option value="{{ item }}" {% if status_filter == item %}selected{% endif %}>{{ item|capitalize }}</option>
+        <button type="button" role="menuitemradio" class="catalog-filter-option{% if status_filter == item %} is-selected{% endif %}" data-status-value="{{ item }}" data-status-label="{{ item|capitalize }}" aria-checked="{{ 'true' if status_filter == item else 'false' }}">{{ item|capitalize }}</button>
       {% endfor %}
-    </select>
+      </div>
+    </div>
     <button type="submit">Buscar</button>
   </div>
 </form>

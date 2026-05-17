@@ -144,6 +144,30 @@ def test_catalog_home_search_matches_artist_partial(client):
     assert "Quarteto Nordestino" in home_response.text
 
 
+def test_site_uses_wide_container_and_catalog_five_column_layout(client):
+    create_copy(client, title="Disco Largo", artist="Artista Layout")
+
+    home_response = client.get("/")
+    assert home_response.status_code == 200
+    assert 'id="catalog-grid"' in home_response.text
+    assert 'id="catalog-status-filter"' in home_response.text
+    assert 'type="hidden" name="status"' in home_response.text
+    assert 'id="catalog-filter-toggle"' in home_response.text
+    assert 'id="catalog-filter-options"' in home_response.text
+    assert "<select name=\"status\"" not in home_response.text
+
+    library_response = client.get("/biblioteca")
+    assert library_response.status_code == 200
+    assert "library-container" not in library_response.text
+
+    styles_response = client.get("/static/styles.css")
+    assert styles_response.status_code == 200
+    assert "max-width: 1280px" in styles_response.text
+    assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in styles_response.text
+    assert "grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr))" in styles_response.text
+    assert ".catalog-filter-toggle" in styles_response.text
+
+
 def test_catalog_home_search_matches_storage_location(client):
     create_copy(client, title="Forró de Nicho", artist="Mestre Lua")
 
@@ -238,6 +262,32 @@ def test_k2_storage_layout_has_only_two_vertical_slots(client):
     assert [slot["capacity_estimate"] for slot in slots] == [65, 70]
 
 
+def test_triage_boxes_are_available_as_pending_storage(client):
+    response = client.get("/api/v1/copies/meta/storage")
+    assert response.status_code == 200, response.text
+    units = {item["code"]: item for item in response.json()}
+
+    assert units["BOX1"]["name"] == "Box fechada"
+    assert units["BOX2"]["name"] == "Caixa sobre o movel"
+    for unit_code in ("BOX1", "BOX2"):
+        slots = units[unit_code]["slots"]
+        assert len(slots) == 1
+        assert slots[0]["slot_code"] == "A1"
+        assert slots[0]["purpose"] == "Triagem / pendencias"
+        assert slots[0]["capacity_estimate"] == 65
+
+    created = create_copy_in_unit(
+        client,
+        unit_code="BOX1",
+        title="Disco na Box",
+        artist="Artista em Triagem",
+        slot_code="A1",
+        slot_position="010",
+    )
+    assert created["slot_position"] is None
+    assert created["location_code"] == "BOX1-A1"
+
+
 def test_normalize_slot_positions_rebalances_slot(client):
     slot_id = get_storage_slot_id(client, "K1", "B2")
     first = create_copy(client, title="B Disco", artist="Artista B", slot_code="B2", slot_position="030")
@@ -325,9 +375,17 @@ def test_library_renders_visual_storage_grid_and_versioned_assets(client):
     assert "shelf-shell" in response.text
     assert "slot-record-bars" in response.text
     assert "record-bar-available" in response.text
+    assert "unit-board-box1" in response.text
+    assert "unit-board-box2" in response.text
     assert "slot-details-panel" in response.text
     assert "/static/styles.css?v=" in response.text
     assert "/static/js/home.js?v=" in response.text
+
+    styles_response = client.get("/static/styles.css")
+    assert styles_response.status_code == 200
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in styles_response.text
+    assert ".unit-board:not(.unit-board-k1):not(.unit-board-k2):not(.unit-board-box1):not(.unit-board-box2)" in styles_response.text
+    assert ".unit-board-box1" in styles_response.text
 
 
 def test_blank_discogs_query_returns_400(client):
